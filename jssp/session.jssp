@@ -1,0 +1,11 @@
+<?
+	if(session_read('testname'))
+	{
+		echo('exist: '+session_read('testname'));
+	}
+	else
+	{
+		var number = Math.random();
+		session_write('testname',number,10*1000);
+		echo('create: '+session_read('testname'));
+	}

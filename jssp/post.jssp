@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<?
+	function showinfo()
+	{
+		for(var name in $_GET)
+		{
+			echo('$_GET|'+name+':'+$_GET[name]+'<br>');
+		}	
+
+		for(var name in $_POST)
+		{
+			echo('$_POST|'+name+':'+$_POST[name]+'<br>');
+		}	
+
+		for(var filename in $_FILE)
+		{
+			echo('$_FILE|'+filename+':'+$_FILE[filename].length+'<br>');
+		}
+	}
+	showinfo();
+?>

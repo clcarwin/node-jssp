@@ -1,0 +1,4 @@
+<?
+	var id = $_GET['id'];
+	if(id) echo(session_read(id));
+?>

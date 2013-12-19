@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<?
+	set_time_limit(10*1000);//default is 60 seconds
+
+	var count = 0;
+	var timer = setInterval(wrapper(function()
+	{
+		echo('hi');
+		count++;
+
+		//if(count>=4) clearInterval(timer);//forget clear
+	}),1*1000);
+?>

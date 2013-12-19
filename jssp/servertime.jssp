@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>TIME</title>
+<meta http-equiv="refresh" content="2">
+</head>
+
+<body>
+<h1><img src='logo.png' style='vertical-align:middle;width:64px;height:64px'></img> Server Time</h1>
+<p><? 
+	echo(new Date()) 
+?></p>
+<p><?
+	var os = require('os');
+	echo('System Uptime: '+Math.floor(os.uptime()));
+	echo('<br>Free Memory: '+Math.floor(os.freemem()/1024/1024)+' MB');
+?></p>
+</body>
+
+</html>

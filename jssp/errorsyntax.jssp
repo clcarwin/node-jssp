@@ -1,0 +1,7 @@
+<!DOCTYPE html>
+<?
+	function aa(bb
+	{
+		return bb;
+	}
+?>
