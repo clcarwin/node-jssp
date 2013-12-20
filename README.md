@@ -28,4 +28,5 @@ var server = jssp.CreateServer();
 server.listen(8080,'0.0.0.0');
 server.setBase('./jssp/');
 server.setPost(20*1024*1024);//MaxPostSize
+server.setExternal({...});//this obj can be access by $_ENV['external']
 ```
