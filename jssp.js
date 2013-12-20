@@ -22,6 +22,7 @@ module.exports = new JSSPCore();
 var BaseDirectory  = './jssp/';
 var MaxExecuteTime = 60*1000;//60 seconds
 var MaxPostSize    = 20*1024*1024;//20MB
+var ExternalObject = undefined;//set by external code
 
 function JSSPCore()
 {
@@ -48,6 +49,10 @@ function JSSPCore()
 		server.setPost = function(maxsize)
 		{
 			MaxPostSize = maxsize;
+		}
+		server.setExternal = function(obj)
+		{
+			ExternalObject = obj;
 		}
 		return server;
 	}
@@ -152,7 +157,6 @@ function JSSPCore()
 		function vmObject()
 		{
 			this.process = process;//use to emit 'newpage' and 'include'
-			this.env     = process.env;
 			this.console = console;//use when debug
 			this.jsspGlobalObject = jsspGlobalObject;
 
@@ -417,6 +421,10 @@ function JSSPCore()
 				$_SERVER['CONTENT_TYPE']   = reqparam.headers['content-type'];
 				jssp.$_SERVER = $_SERVER;
 
+				jssp.$_ENV = {};
+				for(var key in process.env) jssp.$_ENV[key] = process.env[key];
+				jssp.$_ENV['external'] = ExternalObject;
+
 				jssp.set_time_limit = function(timeout)
 				{
 					var cb = maxtimer._onTimeout;
@@ -550,8 +558,6 @@ function VMStart()
     var Buffer         = this.Buffer;
 	var session_write  = this.session_write;
 	var session_read   = this.session_read;
-	var $_ENV          = {};
-	for(var key in this.env) $_ENV[key]=this.env[key];
 
 	function EvalCode(code,jssp)
 	{
@@ -582,10 +588,11 @@ function VMStart()
 		var $$errorformat  = jssp.errorformat;
 
 		jssp.initphp();
-		var $_GET  = jssp.$_GET;
-		var $_POST = jssp.$_POST;
-		var $_FILE = jssp.$_FILE;
+		var $_GET    = jssp.$_GET;
+		var $_POST   = jssp.$_POST;
+		var $_FILE   = jssp.$_FILE;
 		var $_SERVER = jssp.$_SERVER;
+		var $_ENV    = jssp.$_ENV;
 		var set_time_limit = jssp.set_time_limit;
 		var header         = jssp.header;
 		var headers_sent   = jssp.headers_sent;
@@ -611,7 +618,6 @@ function VMStart()
 	this.VMStart = undefined;
 	for(var key in this) delete this[key];
 	Object.freeze(this);
-	Object.freeze($_ENV);
 
 	process.on('newpage',function(req,res,code,codefilename,postobj,fileobj)
 	{
