@@ -1,0 +1,17 @@
+{
+  "name": "node-jssp",
+  "version": "0.1.0",
+  "description": "JavaScript Server Page on nodejs. The syntax looks like PHP.",
+  "main": "jssp.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/clcarwin/node-jssp"
+  },
+  "keywords": [
+    "jssp",
+    "php",
+    "dynamic"
+  ],
+  "author": "carwin",
+  "license": "MIT"
+}
