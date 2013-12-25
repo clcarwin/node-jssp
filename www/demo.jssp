@@ -1,5 +1,5 @@
 Global Variable & Function:
-  __filename __dirname global $_GET $_POST $_FILE $_SERVER
+  __filename __dirname global $_GET $_POST $_FILE $_SERVER $_ENV
   echo exit wrapper include set_time_limit session_read session_write header headers_sent
 
-<?  echo("Hello");  ?>
+<?  echo(__filename);  ?>

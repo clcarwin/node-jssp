@@ -19,7 +19,7 @@ var querystring = require('querystring');
 
 module.exports = new JSSPCore();
 
-var BaseDirectory  = './jssp/';
+var BaseDirectory  = './www/';
 var MaxExecuteTime = 60*1000;//60 seconds
 var MaxPostSize    = 20*1024*1024;//20MB
 var ExternalObject = undefined;//set by external code
@@ -32,7 +32,7 @@ function JSSPCore()
 
 	this.CreateServer = function()
 	{
-		BaseDirectory = path.resolve(BaseDirectory)+'/';
+		BaseDirectory = path.resolve(__dirname,BaseDirectory);
 		var vmobj = thisobj.CreateGlobalObject();
 		var code = VMStart.toString()+';VMStart();'
 		vm.runInNewContext(code,vmobj);
@@ -44,7 +44,7 @@ function JSSPCore()
 
 		server.setBase = function(basepath)
 		{
-			BaseDirectory = path.resolve(basepath)+'/';
+			BaseDirectory = path.resolve(__dirname,basepath);
 		}
 		server.setPost = function(maxsize)
 		{
@@ -63,8 +63,9 @@ function JSSPCore()
 		var urlparse = url.parse(requrl,true);
 		if(!urlparse.pathname) urlparse.pathname = 'index.jssp';
 		if('/'==urlparse.pathname) urlparse.pathname = 'index.jssp';
-		var filename = BaseDirectory + urlparse.pathname;
-		filename = path.resolve(filename);
+		var filename = urlparse.pathname;
+		filename = filename.replace(/\.\./g,'');//security
+		filename = path.resolve(BaseDirectory,'./'+filename);
 
 		if('POST'==req.method)
 		{
@@ -127,11 +128,11 @@ function JSSPCore()
 		{
 			var cb = function(err)
 			{
-				res.end(''+err);
+				if( (''+err).indexOf('ENOENT')>=0 ) res.end('<h1>404 Not Found</h1>')
+				else res.end(''+err);
 			}
 
-			var tmp = filename.toLowerCase().slice(filename.length-5);
-			if('.jssp'!=tmp)
+			if('.jssp'!=path.extname(filename))
 			{
 				fs.readFile(filename,function(err, data)
 				{
@@ -349,7 +350,7 @@ function JSSPCore()
 			{
 				//communicate by global
 				jsspfile = BaseDirectory + jsspfile;
-				jsspfile = path.resolve(jsspfile);
+				jsspfile = path.resolve(path.dirname(codefilename),jsspfile);
 
 				if(undefined==cb) cb = function(){};
 				var includecallback = jssp.wrapper(cb);
@@ -643,7 +644,7 @@ if(process.argv[1]==__filename)
 	var argv = process.argv;
 	var port = '80';
 	var ip   = '0.0.0.0';
-	var base = './jssp/';
+	var base = './www/';
 
 	if(argv[2]) port = argv[2];
 	if(argv[3]) ip   = argv[3];
