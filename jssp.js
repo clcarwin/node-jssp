@@ -348,8 +348,7 @@ function JSSPCore()
 			this.include = function(jsspfile,cb)
 			{
 				//communicate by global
-				jsspfile = BaseDirectory + jsspfile;
-				jsspfile = path.resolve(path.dirname(codefilename),jsspfile);
+				jsspfile = path.resolve(BaseDirectory,jsspfile);
 
 				if(undefined==cb) cb = function(){};
 				var includecallback = jssp.wrapper(cb);
@@ -630,7 +629,6 @@ function VMStart()
 		var jsspnewobj = new jsspGlobalObject(req,res,code,codefilename);
 		jsspnewobj.global = jssp.global;
 		jsspnewobj.includecallback = includecallback; //will be called in jsspnewobj.runnext
-		Object.freeze(jsspnewobj);
 
 		EvalCode(code,jsspnewobj);
 	});
