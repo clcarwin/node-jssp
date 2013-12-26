@@ -59,12 +59,10 @@ function JSSPCore()
 
 	this.RenderPage = function(req,res,vmobj)
 	{
-		var requrl = req.url;
-		var urlparse = url.parse(requrl,true);
-		if(!urlparse.pathname) urlparse.pathname = 'index.jssp';
-		if('/'==urlparse.pathname) urlparse.pathname = 'index.jssp';
+		var urlparse = url.parse(req.url,true);
 		var filename = urlparse.pathname;
-		filename = filename.replace(/\.\./g,'');//security
+		if( (!filename)||('/'==filename) ) filename = 'index.jssp';
+		filename = path.normalize('/'+filename); //delete .. in filename
 		filename = path.resolve(BaseDirectory,'./'+filename);
 
 		if('POST'==req.method)
