@@ -220,7 +220,7 @@ function JSSPCore()
 				//call echo/exit in a unwrappered callback, will return a error
 				var caller = arg.callee.caller;
 				while(caller) {
-					if(caller.$$wrappertype) { return true; }
+					if(caller.$$wrapperflag) { return true; }
 					caller = caller.caller;
 				}
 
@@ -259,15 +259,16 @@ function JSSPCore()
 				wrappercount++;
 				var ret = function()
 				{
-					if(this) { if(2===this.$$timertype) wrappercount++; }
+					if(!ret.$$reentrant) wrappercount--;
+					ret.$$reentrant = true;
 
-					wrappercount--;
 					try{ cb.apply(this,arguments); }
 					catch(e){ jssp.exit(jssp.errorformat(e)); }
 
 					jssp.runnext();
 				}
-				ret.$$wrappertype = 1;
+				ret.$$wrapperflag = true;
+				ret.$$reentrant   = false;
 				return ret;
 			}
 			this.runnext = function()
@@ -323,7 +324,7 @@ function JSSPCore()
 
 					jssp.runnext();
 				};
-				ret.$$wrappertype = 2;
+				ret.$$wrapperflag = true;
 				html.push(ret);
 			};
 			this.html2js = function(cb)
@@ -364,29 +365,28 @@ function JSSPCore()
 			this.setTimeout = function()
 			{
 				var ret = setTimeout.apply(this,arguments);
-				ret.$$timertype = 1;
+				ret.$$timeoutflag = true;
 				return ret;
 			}
 			this.clearTimeout = function(timer)
 			{
-				if(timer) { 
-					if(timer.$$timertype) wrappercount--;
-					delete timer.$$timertype;
-				}
+				if(!timer) return;
+				if(timer.$$timeoutflag) wrappercount--;
+				delete timer.$$timeoutflag;
 				return clearTimeout(timer);
 			}
-			this.setInterval = function()
+			this.setInterval = function(cb)
 			{
+				if(cb) if(cb.$$wrapperflag) cb.$$reentrant = true;
 				var ret = setInterval.apply(this,arguments);
-				ret.$$timertype = 2;
+				ret.$$intervalflag = true;
 				return ret;
 			}
 			this.clearInterval = function(timer)
 			{
-				if(timer) { 
-					if(timer.$$timertype) wrappercount--;
-					delete timer.$$timertype;
-				}
+				if(!timer) return;
+				if(timer.$$intervalflag) wrappercount--;
+				delete timer.$$intervalflag;
 				return clearInterval(timer);
 			}
 
