@@ -17,7 +17,7 @@ JavaScript Server Page on nodejs. The syntax looks like PHP.
 Run as simple web server:
 
 ```bash
-node jssp.js 8080 0.0.0.0 ./jssp/
+node jssp.js 8080 0.0.0.0 ./www/
 ```
 
 Run with other nodejs code:
@@ -26,7 +26,7 @@ Run with other nodejs code:
 var jssp = require('jssp.js');
 var server = jssp.CreateServer();
 server.listen(8080,'0.0.0.0');
-server.setBase('./jssp/');
+server.setBase('./www/');
 server.setPost(20*1024*1024);//MaxPostSize
 server.setExternal({...});//this obj can be access by $_ENV['external']
 ```
