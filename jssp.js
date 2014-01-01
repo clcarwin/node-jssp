@@ -33,13 +33,13 @@ function JSSPCore()
 	this.CreateServer = function()
 	{
 		BaseDirectory = path.resolve(__dirname,BaseDirectory);
-		var vmobj = thisobj.CreateGlobalObject();
+		var vmobj = CreateGlobalObject();
 		var code = VMStart.toString()+';VMStart();'
 		vm.runInNewContext(code,vmobj);
 
 		var server = http.createServer(function (req, res) 
 		{
-			thisobj.RenderPage(req,res,vmobj);
+			RenderPage(req,res,vmobj);
 		});
 
 		server.setBase = function(basepath)
@@ -57,7 +57,7 @@ function JSSPCore()
 		return server;
 	}
 
-	this.RenderPage = function(req,res,vmobj)
+	function RenderPage(req,res,vmobj)
 	{
 		var urlparse = url.parse(req.url,true);
 		var filename = urlparse.pathname;
@@ -151,7 +151,7 @@ function JSSPCore()
 		}
 	}
 
-	this.CreateGlobalObject = function()
+	function CreateGlobalObject()
 	{
 		function vmObject()
 		{
