@@ -456,6 +456,7 @@ function jssp2js(str)
 	var re = new RegExp(spliter,'g');
 	str = str.replace(/\<\?/g,spliter+'/*<?*/');
 	str = str.replace(/\?\>/g,'/*?>*/'+spliter);
+	str = str.replace(/session_start\( *\)/,'($_SESSION=session_start())');
 
 	var list = str.split(spliter);
 
@@ -590,6 +591,7 @@ function VMStart()
 		var $_FILE   = jssp.$_FILE;
 		var $_SERVER = jssp.$_SERVER;
 		var $_ENV    = jssp.$_ENV;
+		var $_SESSION= undefined;
 		var set_time_limit = jssp.set_time_limit;
 		var header         = jssp.header;
 		var headers_sent   = jssp.headers_sent;
