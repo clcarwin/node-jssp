@@ -196,11 +196,10 @@ function JSSPCore()
 			}
 		}
 
-		function jsspGlobalObject(reqparam,resparam,code,codefilename,postobj,fileobj)
+		function jsspGlobalObject(req,res,code,codefilename,postobj,fileobj)
 		{
 			var html = [];
 			var wrappercount = 0;
-			var res = resparam;
 
 			var jssp = this;
 			jssp.__filename = codefilename.slice(0,codefilename.length-3);
@@ -358,7 +357,7 @@ function JSSPCore()
 					if(e) { jssp.internalexit(jssp.errorformat(e)); return; }
 					var code = jssp2js(data);
 					 
-					process.emit('include',reqparam,resparam,code,jsspfile+'.js',jssp,includecallback);
+					process.emit('include',req,resparam,code,jsspfile+'.js',jssp,includecallback);
 				});
 			}
 			this.setTimeout = function()
@@ -391,7 +390,7 @@ function JSSPCore()
 
 			this.initphp = function()
 			{
-				var urlobj  = url.parse(reqparam.url,true);
+				var urlobj  = url.parse(req.url,true);
 				jssp.$_GET  = urlobj.query;
 				jssp.$_POST = postobj;
 				jssp.$_FILE = fileobj;
@@ -399,24 +398,24 @@ function JSSPCore()
 				var $_SERVER = {};
 				$_SERVER['JSSP_SELF']      = __filename;
 				$_SERVER['SCRIPT_FILENAME']= __filename;
-				$_SERVER['REMOTE_ADDR']    = reqparam.socket.remoteAddress;
-				$_SERVER['REMOTE_PORT']    = reqparam.socket.remotePort;
-				$_SERVER['SERVER_ADDR']    = reqparam.socket.localAddress;
-				$_SERVER['SERVER_PORT']    = reqparam.socket.localPort;
-				$_SERVER['SERVER_PROTOCOL']= reqparam.httpVersion;
-				$_SERVER['REQUEST_METHOD'] = reqparam.method;
-				$_SERVER['QUERY_STRING']   = reqparam.url;
+				$_SERVER['REMOTE_ADDR']    = req.socket.remoteAddress;
+				$_SERVER['REMOTE_PORT']    = req.socket.remotePort;
+				$_SERVER['SERVER_ADDR']    = req.socket.localAddress;
+				$_SERVER['SERVER_PORT']    = req.socket.localPort;
+				$_SERVER['SERVER_PROTOCOL']= req.httpVersion;
+				$_SERVER['REQUEST_METHOD'] = req.method;
+				$_SERVER['QUERY_STRING']   = req.url;
 
-				$_SERVER['HTTP_HOST']      = reqparam.headers['host'];
-				$_SERVER['HTTP_USER_AGENT']= reqparam.headers['user-agent'];
-				$_SERVER['HTTP_ACCEPT']    = reqparam.headers['accept'];
-				$_SERVER['HTTP_CONNECTION']= reqparam.headers['connection'];
-				$_SERVER['HTTP_REFERER']   = reqparam.headers['referer'];
-				$_SERVER['HTTP_ACCEPT_CHARSET'] = reqparam.headers['accept-charset'];
-				$_SERVER['HTTP_ACCEPT_ENCODING']= reqparam.headers['accept-encoding'];
-				$_SERVER['HTTP_ACCEPT_LANGUAGE']= reqparam.headers['accept-language'];
-				$_SERVER['CONTENT_LENGTH'] = reqparam.headers['content-length'];
-				$_SERVER['CONTENT_TYPE']   = reqparam.headers['content-type'];
+				$_SERVER['HTTP_HOST']      = req.headers['host'];
+				$_SERVER['HTTP_USER_AGENT']= req.headers['user-agent'];
+				$_SERVER['HTTP_ACCEPT']    = req.headers['accept'];
+				$_SERVER['HTTP_CONNECTION']= req.headers['connection'];
+				$_SERVER['HTTP_REFERER']   = req.headers['referer'];
+				$_SERVER['HTTP_ACCEPT_CHARSET'] = req.headers['accept-charset'];
+				$_SERVER['HTTP_ACCEPT_ENCODING']= req.headers['accept-encoding'];
+				$_SERVER['HTTP_ACCEPT_LANGUAGE']= req.headers['accept-language'];
+				$_SERVER['CONTENT_LENGTH'] = req.headers['content-length'];
+				$_SERVER['CONTENT_TYPE']   = req.headers['content-type'];
 				jssp.$_SERVER = $_SERVER;
 
 				jssp.$_ENV = {};
