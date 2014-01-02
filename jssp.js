@@ -23,13 +23,10 @@ var BaseDirectory  = './www/';
 var MaxExecuteTime = 60*1000;//60 seconds
 var MaxPostSize    = 20*1024*1024;//20MB
 var ExternalObject = undefined;//set by external code
+var GLOBAL_SESSIONS= {};
 
 function JSSPCore()
 {
-	var thisobj = this;
-	var TimerUniqueID = 0;
-	var codesavemap = {};
-
 	this.CreateServer = function()
 	{
 		BaseDirectory = path.resolve(__dirname,BaseDirectory);
@@ -162,38 +159,6 @@ function JSSPCore()
 			//global function
 			this.require = require;
 			this.Buffer = Buffer;
-
-			var SESSION = {};
-			this.session_write = function(name,value,timeout)
-			{
-				if(!timeout) timeout = 1440*1000;//24 minutes
-
-				var s = SESSION[name];
-				if(!s) s = {};
-				s.value = value;
-				s.timeout = timeout;
-
-				if(s.timer) clearTimeout(s.timer);
-				s.timer = setTimeout(function()
-				{
-					delete SESSION[name];
-				},s.timeout);
-
-				SESSION[name] = s;
-			}
-			this.session_read = function(name)
-			{
-				var s = SESSION[name];
-				if(!s) return undefined;
-
-				if(s.timer) clearTimeout(s.timer);
-				s.timer = setTimeout(function()
-				{
-					delete SESSION[name];
-				},s.timeout);
-
-				return s.value;
-			}
 		}
 
 		function jsspGlobalObject(req,res,code,codefilename,postobj,fileobj)
@@ -357,7 +322,7 @@ function JSSPCore()
 					if(e) { jssp.internalexit(jssp.errorformat(e)); return; }
 					var code = jssp2js(data);
 					 
-					process.emit('include',req,resparam,code,jsspfile+'.js',jssp,includecallback);
+					process.emit('include',req,res,code,jsspfile+'.js',jssp,includecallback);
 				});
 			}
 			this.setTimeout = function()
@@ -390,57 +355,7 @@ function JSSPCore()
 
 			this.initphp = function()
 			{
-				var urlobj  = url.parse(req.url,true);
-				jssp.$_GET  = urlobj.query;
-				jssp.$_POST = postobj;
-				jssp.$_FILE = fileobj;
-
-				var $_SERVER = {};
-				$_SERVER['JSSP_SELF']      = __filename;
-				$_SERVER['SCRIPT_FILENAME']= __filename;
-				$_SERVER['REMOTE_ADDR']    = req.socket.remoteAddress;
-				$_SERVER['REMOTE_PORT']    = req.socket.remotePort;
-				$_SERVER['SERVER_ADDR']    = req.socket.localAddress;
-				$_SERVER['SERVER_PORT']    = req.socket.localPort;
-				$_SERVER['SERVER_PROTOCOL']= req.httpVersion;
-				$_SERVER['REQUEST_METHOD'] = req.method;
-				$_SERVER['QUERY_STRING']   = req.url;
-
-				$_SERVER['HTTP_HOST']      = req.headers['host'];
-				$_SERVER['HTTP_USER_AGENT']= req.headers['user-agent'];
-				$_SERVER['HTTP_ACCEPT']    = req.headers['accept'];
-				$_SERVER['HTTP_CONNECTION']= req.headers['connection'];
-				$_SERVER['HTTP_REFERER']   = req.headers['referer'];
-				$_SERVER['HTTP_ACCEPT_CHARSET'] = req.headers['accept-charset'];
-				$_SERVER['HTTP_ACCEPT_ENCODING']= req.headers['accept-encoding'];
-				$_SERVER['HTTP_ACCEPT_LANGUAGE']= req.headers['accept-language'];
-				$_SERVER['CONTENT_LENGTH'] = req.headers['content-length'];
-				$_SERVER['CONTENT_TYPE']   = req.headers['content-type'];
-				jssp.$_SERVER = $_SERVER;
-
-				jssp.$_ENV = {};
-				for(var key in process.env) jssp.$_ENV[key] = process.env[key];
-				jssp.$_ENV['external'] = ExternalObject;
-
-				jssp.set_time_limit = function(timeout)
-				{
-					var cb = maxtimer._onTimeout;
-					clearTimeout(maxtimer);
-					maxtimer = setTimeout(cb,timeout);
-				}
-				jssp.header = function(name,value,responsecode)
-				{
-					if(!res) return;
-					if(jssp.headers_sent()) return;
-
-					res.setHeader(name,value);
-					if(responsecode) res.statusCode = responsecode;
-				}
-				jssp.headers_sent = function()
-				{
-					if(!res) return true;
-					return res.headersSent;
-				}
+				phpemulate(req,res,jssp,postobj,fileobj);
 			}
 		}
 
@@ -550,16 +465,122 @@ function postparse(contenttype,postbuffer,postobj,fileobj)
 	}
 }
 
+function phpemulate(req,res,jssp,postobj,fileobj)
+{
+	var urlobj  = url.parse(req.url,true);
+	jssp.$_GET  = urlobj.query;
+	jssp.$_POST = postobj;
+	jssp.$_FILE = fileobj;
+
+	var $_SERVER = {};
+	$_SERVER['JSSP_SELF']      = __filename;
+	$_SERVER['SCRIPT_FILENAME']= __filename;
+	$_SERVER['REMOTE_ADDR']    = req.socket.remoteAddress;
+	$_SERVER['REMOTE_PORT']    = req.socket.remotePort;
+	$_SERVER['SERVER_ADDR']    = req.socket.localAddress;
+	$_SERVER['SERVER_PORT']    = req.socket.localPort;
+	$_SERVER['SERVER_PROTOCOL']= req.httpVersion;
+	$_SERVER['REQUEST_METHOD'] = req.method;
+	$_SERVER['QUERY_STRING']   = req.url;
+
+	$_SERVER['HTTP_HOST']      = req.headers['host'];
+	$_SERVER['HTTP_USER_AGENT']= req.headers['user-agent'];
+	$_SERVER['HTTP_ACCEPT']    = req.headers['accept'];
+	$_SERVER['HTTP_CONNECTION']= req.headers['connection'];
+	$_SERVER['HTTP_REFERER']   = req.headers['referer'];
+	$_SERVER['HTTP_ACCEPT_CHARSET'] = req.headers['accept-charset'];
+	$_SERVER['HTTP_ACCEPT_ENCODING']= req.headers['accept-encoding'];
+	$_SERVER['HTTP_ACCEPT_LANGUAGE']= req.headers['accept-language'];
+	$_SERVER['CONTENT_LENGTH'] = req.headers['content-length'];
+	$_SERVER['CONTENT_TYPE']   = req.headers['content-type'];
+	jssp.$_SERVER = $_SERVER;
+
+	jssp.$_ENV = {};
+	for(var key in process.env) jssp.$_ENV[key] = process.env[key];
+	jssp.$_ENV['external'] = ExternalObject;
+
+	var SESSION   = GLOBAL_SESSIONS;
+	var SESSIONID = undefined;
+	this.internal_session_write = function(name,value,timeout)
+	{
+		var s = SESSION[name];
+		if(!s) s = {}; s.value = value; s.timeout = timeout;
+		if(!s.timeout) s.timeout = 24*60*1000;
+
+		if(s.timer) clearTimeout(s.timer);
+		s.timer = setTimeout(function(){ delete SESSION[name]; },s.timeout);
+
+		SESSION[name] = s;
+	}
+	this.internal_session_read = function(name)
+	{
+		var s = SESSION[name]; if(!s) return undefined;
+
+		if(s.timer) clearTimeout(s.timer);
+		s.timer = setTimeout(function(){ delete SESSION[name]; },s.timeout);
+
+		return s.value;
+	}
+	this.session_start = function()
+	{
+		var id = jssp.session_id();
+		res.setHeader('Set-Cookie','JSSPSESSID='+id);
+
+		var obj = jssp.internal_session_read(id);
+		if(!obj) { obj={}; jssp.internal_session_write(id,obj); }
+		return obj;
+	}
+	this.session_id = function()
+	{
+		if(SESSIONID) return SESSIONID;
+
+		var cookie = ''+req.headers('cookie')+';' ;
+		var index  = cookie.indexOf('JSSPSESSID=');
+		if(index>=0) 
+		{
+			SESSIONID = cookie.slice(index+11);
+			index  = SESSIONID.indexOf(';');
+			SESSIONID = SESSIONID.slice(0,index);
+		}
+		if(SESSIONID) return SESSIONID;
+
+		SESSIONID = ''+Math.random();
+		return SESSIONID;
+	}
+	this.session_destroy = function()
+	{
+		jssp.internal_session_write(SESSIONID,undefined,0);
+		SESSIONID = undefined;
+	}
+
+	jssp.set_time_limit = function(timeout)
+	{
+		var cb = maxtimer._onTimeout;
+		clearTimeout(maxtimer);
+		maxtimer = setTimeout(cb,timeout);
+	}
+	jssp.header = function(name,value,responsecode)
+	{
+		if(!res) return;
+		if(jssp.headers_sent()) return;
+
+		res.setHeader(name,value);
+		if(responsecode) res.statusCode = responsecode;
+	}
+	jssp.headers_sent = function()
+	{
+		if(!res) return true;
+		return res.headersSent;
+	}
+}
+
 function VMStart()
 {
 	var require        = this.require;
     var Buffer         = this.Buffer;
-	var session_write  = this.session_write;
-	var session_read   = this.session_read;
 
 	function EvalCode(code,jssp)
 	{
-
 		var global = jssp.global;
 		var process = undefined;
 		var jsspGlobalObject = undefined;
@@ -580,21 +601,24 @@ function VMStart()
 		var clearTimeout = jssp.clearTimeout;
 		var clearInterval= jssp.clearInterval;
 
-		var $$arraypush = jssp.arraypush;
-		var $$html2js   = jssp.html2js;
+		var $$arraypush    = jssp.arraypush;
+		var $$html2js      = jssp.html2js;
 		var $$internalexit = jssp.internalexit;
 		var $$errorformat  = jssp.errorformat;
 
 		jssp.initphp();
-		var $_GET    = jssp.$_GET;
-		var $_POST   = jssp.$_POST;
-		var $_FILE   = jssp.$_FILE;
-		var $_SERVER = jssp.$_SERVER;
-		var $_ENV    = jssp.$_ENV;
-		var $_SESSION= undefined;
-		var set_time_limit = jssp.set_time_limit;
-		var header         = jssp.header;
-		var headers_sent   = jssp.headers_sent;
+		var $_GET     = jssp.$_GET;
+		var $_POST    = jssp.$_POST;
+		var $_FILE    = jssp.$_FILE;
+		var $_SERVER  = jssp.$_SERVER;
+		var $_ENV     = jssp.$_ENV;
+		var $_SESSION = undefined;
+		var session_start   = jssp.session_start;
+		var session_id      = jssp.session_id;
+		var session_destroy = jssp.session_destroy;
+		var set_time_limit  = jssp.set_time_limit;
+		var header          = jssp.header;
+		var headers_sent    = jssp.headers_sent;
 
 		var $$domainobj = require('domain').create();
 		$$domainobj.on("error",function(e){ $$internalexit($$errorformat(e)); });
@@ -634,6 +658,7 @@ function VMStart()
 		EvalCode(code,jsspnewobj);
 	});
 }
+
 
 if(process.argv[1]==__filename)
 {
