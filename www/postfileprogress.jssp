@@ -1,4 +1,5 @@
 <?
-	var id = $_GET['id'];
-	if(id) echo(session_read(id));
+	session_start();
+
+	echo($_SESSION['session_upload_progress']);
 ?>

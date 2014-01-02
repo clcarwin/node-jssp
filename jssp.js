@@ -66,13 +66,14 @@ function JSSPCore()
 		{
 			var postobj = {};
 			var fileobj = {};
+
+			var sessionid = splitsessionid(req.headers['cookie']);
+			var session   = GLOBAL_SESSIONS[sessionid];
+			if(session) session=session.value;
 			var contentlength = parseInt(req.headers['content-length']);
-			var prefix  = urlparse.query['session_upload_progress_prefix'];
-			if(prefix) prefix = 'session_upload_progress_prefix' + prefix;
 			
 			var chunklist = [];
 			var size = 0;
-			var progress = 0;
 			req.on('data',function(chunk)
 			{
 				chunklist.push(chunk);
@@ -84,19 +85,12 @@ function JSSPCore()
 					return;
 				}
 
-				var cur_p = Math.floor((size*100)/(contentlength+1));
-				if(progress!=cur_p)
-				{
-					if(prefix) vmobj.session_write(prefix,cur_p,60*1000);
-					progress = cur_p;
-				}
+				var progress = Math.floor((size*100)/(contentlength+1));
+				if(session) session['session_upload_progress'] = progress;
 			});
 			req.on('error',function()
 			{
-				var str = 'RECV REQUEST DATA ERROR';
-				res.end(str);
-				req.removeAllListeners('end');
-				return;
+
 			});
 			req.on('end',function()
 			{
@@ -110,7 +104,7 @@ function JSSPCore()
 					res.end(str);
 					return;
 				}
-				if(prefix) vmobj.session_write(prefix,100,60*1000);
+				if(session) session['session_upload_progress'] = 100;
 				ServerFile(filename,req,res,postobj,fileobj);
 			});
 		}
@@ -249,33 +243,7 @@ function JSSPCore()
 			}
 			this.errorformat = function(e)
 			{
-				var str;
-				if(e.stack)
-				{ 
-					str = e.stack;
-					str = 'ERROR IN FILE: ' + codefilename + '\n\n' + str;
-				}
-				else str = e.toString();
-
-				var re = new RegExp('evalmachine.<anonymous>','g');
-				str = str.replace(re,'evalmachine.anonymous');
-				var re = new RegExp('<anonymous>','g');
-				str = str.replace(re,codefilename);
-
-				//format code
-				var c = code;
-				var list = c.split('\n');
-				for(var i=0;i<list.length;i++)
-				{
-					var line = ('00000'+(i+1)).slice(-4) + ' ';
-					list[i] = line + list[i];
-				}
-				c = list.join('\n');
-				str = str + '\n\n' + '------------CODE BEGIN------------\n' + c + '\n------------CODE END------------';
-
-				str = str.replace(/\&/g,'&amp');
-				str = str.replace(/\</g,'&lt;');
-				return '<br><pre>'+str+'</pre>';
+				return codeerrorformat(e,code,codefilename);
 			}
 
 			//tool
@@ -355,7 +323,7 @@ function JSSPCore()
 
 			this.initphp = function()
 			{
-				phpemulate(req,res,jssp,postobj,fileobj);
+				phpemulate(jssp,req,res,postobj,fileobj);
 			}
 		}
 
@@ -465,7 +433,55 @@ function postparse(contenttype,postbuffer,postobj,fileobj)
 	}
 }
 
-function phpemulate(req,res,jssp,postobj,fileobj)
+function codeerrorformat(e,code,codefilename)
+{
+	var str;
+	if(e.stack)
+	{ 
+		str = e.stack;
+		str = 'ERROR IN FILE: ' + codefilename + '\n\n' + str;
+	}
+	else str = e.toString();
+
+	var re = new RegExp('evalmachine.<anonymous>','g');
+	str = str.replace(re,'evalmachine.anonymous');
+	var re = new RegExp('<anonymous>','g');
+	str = str.replace(re,codefilename);
+
+	//format code
+	var c = code;
+	var list = c.split('\n');
+	for(var i=0;i<list.length;i++)
+	{
+		var line = ('00000'+(i+1)).slice(-4) + ' ';
+		list[i] = line + list[i];
+	}
+	c = list.join('\n');
+	str = str + '\n\n' 
+	     +'------------CODE BEGIN------------' 
+	     +'\n'+ c + '\n'
+	     +'------------CODE END------------';
+
+	str = str.replace(/\&/g,'&amp');
+	str = str.replace(/\</g,'&lt;');
+	return '<br><pre>'+str+'</pre>';
+}
+
+function splitsessionid(cookie)
+{
+	cookie = cookie + ';';
+	var id  = undefined;
+	var index  = cookie.indexOf('JSSPSESSID=');
+	if(index>=0) 
+	{
+		id = cookie.slice(index+11);
+		index  = id.indexOf(';');
+		id = id.slice(0,index);
+	}
+	return id;
+}
+
+function phpemulate(jssp,req,res,postobj,fileobj)
 {
 	var urlobj  = url.parse(req.url,true);
 	jssp.$_GET  = urlobj.query;
@@ -499,9 +515,10 @@ function phpemulate(req,res,jssp,postobj,fileobj)
 	for(var key in process.env) jssp.$_ENV[key] = process.env[key];
 	jssp.$_ENV['external'] = ExternalObject;
 
-	var SESSION   = GLOBAL_SESSIONS;
-	var SESSIONID = undefined;
-	this.internal_session_write = function(name,value,timeout)
+	var SESSION    = GLOBAL_SESSIONS;
+	var SESSIONID  = undefined;
+	var SESSIONOBJ = undefined;
+	jssp.internal_session_write = function(name,value,timeout)
 	{
 		var s = SESSION[name];
 		if(!s) s = {}; s.value = value; s.timeout = timeout;
@@ -512,7 +529,7 @@ function phpemulate(req,res,jssp,postobj,fileobj)
 
 		SESSION[name] = s;
 	}
-	this.internal_session_read = function(name)
+	jssp.internal_session_read = function(name)
 	{
 		var s = SESSION[name]; if(!s) return undefined;
 
@@ -521,36 +538,46 @@ function phpemulate(req,res,jssp,postobj,fileobj)
 
 		return s.value;
 	}
-	this.session_start = function()
+	jssp.session_start = function()
 	{
 		var id = jssp.session_id();
 		res.setHeader('Set-Cookie','JSSPSESSID='+id);
 
 		var obj = jssp.internal_session_read(id);
 		if(!obj) { obj={}; jssp.internal_session_write(id,obj); }
+
+		SESSIONOBJ = obj;
 		return obj;
 	}
-	this.session_id = function()
+	jssp.session_id = function()
 	{
 		if(SESSIONID) return SESSIONID;
 
-		var cookie = ''+req.headers('cookie')+';' ;
-		var index  = cookie.indexOf('JSSPSESSID=');
-		if(index>=0) 
-		{
-			SESSIONID = cookie.slice(index+11);
-			index  = SESSIONID.indexOf(';');
-			SESSIONID = SESSIONID.slice(0,index);
-		}
+		SESSIONID = splitsessionid(req.headers['cookie']);
 		if(SESSIONID) return SESSIONID;
 
 		SESSIONID = ''+Math.random();
 		return SESSIONID;
 	}
-	this.session_destroy = function()
+	jssp.session_destroy = function()
 	{
 		jssp.internal_session_write(SESSIONID,undefined,0);
-		SESSIONID = undefined;
+		SESSIONID  = undefined;
+		SESSIONOBJ = undefined;
+	}
+	jssp.session_unset = function()
+	{
+		for(var key in SESSIONOBJ) delete SESSIONOBJ[key];
+	}
+	jssp.session_regenerate_id = function()
+	{
+		var oldid = SESSIONID;
+		var obj = jssp.internal_session_read(oldid);
+		jssp.internal_session_write(oldid,undefined,0);
+
+		var id = SESSIONID = ''+Math.random();
+		jssp.internal_session_write(id,obj);
+		res.setHeader('Set-Cookie','JSSPSESSID='+id);
 	}
 
 	jssp.set_time_limit = function(timeout)
@@ -616,6 +643,8 @@ function VMStart()
 		var session_start   = jssp.session_start;
 		var session_id      = jssp.session_id;
 		var session_destroy = jssp.session_destroy;
+		var session_unset   = jssp.session_unset;
+		var session_regenerate_id = jssp.session_regenerate_id;
 		var set_time_limit  = jssp.set_time_limit;
 		var header          = jssp.header;
 		var headers_sent    = jssp.headers_sent;
