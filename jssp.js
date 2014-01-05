@@ -141,10 +141,6 @@ function JSSPCore()
 			this.process = process;//use to emit 'newpage' and 'include'
 			this.console = console;//use when debug
 			this.jsspGlobalObject = jsspGlobalObject;
-
-			//global function
-			this.require = require;
-			this.Buffer = Buffer;
 		}
 
 		function jsspGlobalObject(req,res,code,codefilename,postobj,fileobj)
@@ -285,6 +281,8 @@ function JSSPCore()
 					process.emit('include',req,res,code,jsspfile+'.js',jssp,includecallback);
 				});
 			}
+			this.require = require;
+			this.Buffer  = Buffer;
 			this.setTimeout = function()
 			{
 				var ret = setTimeout.apply(this,arguments);
@@ -595,16 +593,14 @@ function phpemulate(jssp,req,res,postobj,fileobj)
 
 function VMStart()
 {
-	var require        = this.require;
-    var Buffer         = this.Buffer;
-
 	function EvalCode(code,jssp)
 	{
-		var global = jssp.global;
-		var process = undefined;
+		var global    = jssp.global;
+		var process   = undefined;
 		var jsspGlobalObject = undefined;
-		var console = undefined;
-		var VMStart = undefined;
+		var console   = undefined;
+		var VMStart   = undefined;
+		var EvalCode  = undefined;
 
 		var echo      = jssp.echo;
 		var exit      = jssp.exit;
@@ -615,6 +611,8 @@ function VMStart()
 		var __dirname = jssp.__dirname;
 		var __DIR__   = jssp.__dirname;
 
+		var require      = jssp.require;
+		var Buffer       = jssp.Buffer;
 		var setTimeout   = jssp.setTimeout;
 		var setInterval  = jssp.setInterval;
 		var clearTimeout = jssp.clearTimeout;
