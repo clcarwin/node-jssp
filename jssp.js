@@ -64,9 +64,6 @@ function JSSPCore()
 
 		if('POST'==req.method)
 		{
-			var postobj = {};
-			var fileobj = {};
-
 			var sessionid = splitsessionid(req.headers['cookie']);
 			var session   = GLOBAL_SESSIONS[sessionid];
 			if(session) session=session.value;
@@ -88,17 +85,12 @@ function JSSPCore()
 				var progress = Math.floor((size*100)/(contentlength+1));
 				if(session) session['session_upload_progress'] = progress;
 			});
-			req.on('error',function()
-			{
-
-			});
+			req.on('error',function(){});
 			req.on('end',function()
 			{
-				var postbuffer = Buffer.concat(chunklist);
-				var contenttype = req.headers['content-type'];
-
+				var postobj={}, fileobj={};
 				try{
-					postparse(contenttype,postbuffer,postobj,fileobj);
+					postparse(req.headers['content-type'],Buffer.concat(chunklist),postobj,fileobj);
 				}catch(e){
 					var str = 'POST DATA PARSE ERROR: ' + e.stack;
 					res.end(str);
