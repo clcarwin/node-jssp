@@ -1,4 +1,8 @@
 <?
 	session_start();
+	if(!$_SESSION['time']) $_SESSION['time'] = ''+(new Date());
+
 	session_regenerate_id();
+
 	echo('session id: '+session_id());
+	echo('\ntime: '+$_SESSION['time']);

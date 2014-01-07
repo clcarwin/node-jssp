@@ -313,7 +313,7 @@ function JSSPCore()
 
 			this.initphp = function()
 			{
-				phpemulate(jssp,req,res,postobj,fileobj);
+				phpemulate(jssp,req,res,postobj,fileobj,codefilename);
 			}
 		}
 
@@ -471,7 +471,7 @@ function splitsessionid(cookie)
 	return id;
 }
 
-function phpemulate(jssp,req,res,postobj,fileobj)
+function phpemulate(jssp,req,res,postobj,fileobj,codefilename)
 {
 	var urlobj  = url.parse(req.url,true);
 	jssp.$_GET  = urlobj.query;
@@ -528,46 +528,51 @@ function phpemulate(jssp,req,res,postobj,fileobj)
 
 		return s.value;
 	}
+	jssp.internal_session_changeid = function(oldid,newid)
+	{
+		if(oldid==newid) return newid;
+
+		var obj = jssp.internal_session_read(oldid);
+		if( (!oldid)||(!obj) ) obj = {};
+
+		jssp.internal_session_write(oldid,undefined,0);
+		jssp.internal_session_write(newid,obj);
+		res.setHeader('Set-Cookie','JSSPSESSID='+newid);
+		return newid;
+	}
 	jssp.session_start = function()
 	{
-		var id = jssp.session_id();
-		res.setHeader('Set-Cookie','JSSPSESSID='+id);
-
-		var obj = jssp.internal_session_read(id);
-		if(!obj) { obj={}; jssp.internal_session_write(id,obj); }
-
-		SESSIONOBJ = obj;
-		return obj;
-	}
-	jssp.session_id = function()
-	{
-		if(SESSIONID) return SESSIONID;
-
 		SESSIONID = splitsessionid(req.headers['cookie']);
-		if(SESSIONID) return SESSIONID;
+		if(!SESSIONID) SESSIONID = jssp.internal_session_changeid(undefined,''+Math.random());
 
-		SESSIONID = ''+Math.random();
+		SESSIONOBJ = jssp.internal_session_read(SESSIONID);
+		if(!SESSIONOBJ) SESSIONOBJ={};//expired session will just return a empty object
+
+		return SESSIONOBJ;
+	}
+	jssp.session_id = function(newid)
+	{
+		if(!SESSIONID) throw 'SESSION NOT START: '+codefilename;
+		if(newid) SESSIONID = jssp.internal_session_changeid(SESSIONID,newid);
 		return SESSIONID;
 	}
 	jssp.session_destroy = function()
 	{
+		if(!SESSIONID) throw 'SESSION NOT START: '+codefilename;
 		jssp.internal_session_write(SESSIONID,undefined,0);
 		SESSIONID  = undefined;
 		SESSIONOBJ = undefined;
 	}
 	jssp.session_unset = function()
 	{
+		if(!SESSIONID) throw 'SESSION NOT START: '+codefilename;
 		for(var key in SESSIONOBJ) delete SESSIONOBJ[key];
 	}
 	jssp.session_regenerate_id = function()
 	{
-		var oldid = SESSIONID;
-		var obj = jssp.internal_session_read(oldid);
-		jssp.internal_session_write(oldid,undefined,0);
-
-		var id = SESSIONID = ''+Math.random();
-		jssp.internal_session_write(id,obj);
-		res.setHeader('Set-Cookie','JSSPSESSID='+id);
+		if(!SESSIONID) throw 'SESSION NOT START: '+codefilename;
+		SESSIONID = jssp.internal_session_changeid(SESSIONID,''+Math.random());
+		return SESSIONID;
 	}
 
 	jssp.set_time_limit = function(timeout)
