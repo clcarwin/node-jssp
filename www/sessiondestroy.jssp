@@ -1,0 +1,7 @@
+<?
+	session_start();
+	echo('session id: '+session_id());
+	echo('\ntime: '+$_SESSION['time']);
+
+	session_destroy();
+	echo('\n\ndestroy:\ntime: '+$_SESSION['time']);

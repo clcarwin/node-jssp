@@ -530,10 +530,12 @@ function phpemulate(jssp,req,res,postobj,fileobj,codefilename)
 	}
 	jssp.internal_session_changeid = function(oldid,newid)
 	{
-		if(oldid==newid) return newid;
+		if(newid) if(oldid==newid) return newid;
+		if(!newid) newid = ''+Math.random(); //create new sessionid
 
-		var obj = jssp.internal_session_read(oldid);
-		if( (!oldid)||(!obj) ) obj = {};
+		var oldobj = jssp.internal_session_read(oldid);
+		var newobj = jssp.internal_session_read(newid);
+		var obj = {}; if(oldobj) obj=oldobj; if(newobj) obj=newobj;
 
 		jssp.internal_session_write(oldid,undefined,0);
 		jssp.internal_session_write(newid,obj);
@@ -543,10 +545,11 @@ function phpemulate(jssp,req,res,postobj,fileobj,codefilename)
 	jssp.session_start = function()
 	{
 		SESSIONID = splitsessionid(req.headers['cookie']);
-		if(!SESSIONID) SESSIONID = jssp.internal_session_changeid(undefined,''+Math.random());
+		if(!SESSIONID) SESSIONID = jssp.internal_session_changeid(undefined); //sessionid not exist
 
 		SESSIONOBJ = jssp.internal_session_read(SESSIONID);
-		if(!SESSIONOBJ) SESSIONOBJ={};//expired session will just return a empty object
+		if(!SESSIONOBJ) SESSIONID = jssp.internal_session_changeid(undefined);//sessionid invalid
+		if(!SESSIONOBJ) SESSIONOBJ = jssp.internal_session_read(SESSIONID);
 
 		return SESSIONOBJ;
 	}
@@ -559,6 +562,7 @@ function phpemulate(jssp,req,res,postobj,fileobj,codefilename)
 	jssp.session_destroy = function()
 	{
 		if(!SESSIONID) throw 'SESSION NOT START: '+codefilename;
+		jssp.session_unset();
 		jssp.internal_session_write(SESSIONID,undefined,0);
 		SESSIONID  = undefined;
 		SESSIONOBJ = undefined;
