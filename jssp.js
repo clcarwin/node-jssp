@@ -23,6 +23,7 @@ var BaseDirectory  = './www/';
 var MaxExecuteTime = 60*1000;//60 seconds
 var MaxPostSize    = 20*1024*1024;//20MB
 var ExternalObject = undefined;//set by external code
+var GLOBAL_ENV     = {};
 var GLOBAL_SESSIONS= {};
 
 function JSSPCore()
@@ -33,6 +34,10 @@ function JSSPCore()
 		var vmobj = CreateGlobalObject();
 		var code = VMStart.toString()+';VMStart();'
 		vm.runInNewContext(code,vmobj);
+
+		for(var key in process.env) GLOBAL_ENV[key] = process.env[key];
+		Object.defineProperty(GLOBAL_ENV, 'external', { get:function(){ return ExternalObject; } });
+		Object.freeze(GLOBAL_ENV);
 
 		var server = http.createServer(function (req, res) 
 		{
@@ -501,9 +506,7 @@ function phpemulate(jssp,req,res,postobj,fileobj,codefilename)
 	$_SERVER['CONTENT_TYPE']   = req.headers['content-type'];
 	jssp.$_SERVER = $_SERVER;
 
-	jssp.$_ENV = {};
-	for(var key in process.env) jssp.$_ENV[key] = process.env[key];
-	jssp.$_ENV['external'] = ExternalObject;
+	jssp.$_ENV = GLOBAL_ENV;
 
 	var SESSION    = GLOBAL_SESSIONS;
 	var SESSIONID  = undefined;
