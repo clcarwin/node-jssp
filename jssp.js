@@ -113,8 +113,10 @@ function JSSPCore()
 		{
 			var cb = function(err)
 			{
-				if( (''+err).indexOf('ENOENT')>=0 ) res.end('<h1>404 Not Found</h1>')
-				else res.end(''+err);
+				if( (''+err).indexOf('ENOENT')>=0 ) res.write('<h1>404 Not Found</h1>');
+				var str = '<p>'+err+'</p>';
+				var dir = path.normalize(__dirname+path.sep+'..');
+				res.end(str.replace(dir,'...'));
 			}
 
 			if('.jssp'!=path.extname(filename))
@@ -708,13 +710,23 @@ if(require.main === module)
 	var port = '80';
 	var ip   = '0.0.0.0';
 	var base = './www/';
+	var multi= false;
 
 	if(argv[2]) port = argv[2];
 	if(argv[3]) ip   = argv[3];
 	if(argv[4]) base = argv[4];
+	if(argv[5]) multi= argv[5]=='cluster';
 
-	var jsspcore = module.exports;
-	var server = jsspcore.CreateServer();
-	server.listen(port,ip);
-	server.setBase(base);
+	var cluster = require('cluster');
+	if(cluster.isMaster && multi)
+	{
+		for(var i=0;i<require('os').cpus().length;i++) cluster.fork();
+	}
+	else
+	{
+		var jsspcore = module.exports;
+		var server = jsspcore.CreateServer();
+		server.listen(port,ip);
+		server.setBase(base);
+	}
 }
