@@ -2,9 +2,9 @@
 <?
 	set_time_limit(10*1000);//default is 60 seconds
 	
-	var timer = setTimeout(wrapper(function()
+	var timer = setTimeout(function()
 	{
 		echo('hi');
-	}),11*1000);
+	},11*1000);
 
 ?>

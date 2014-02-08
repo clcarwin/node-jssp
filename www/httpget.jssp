@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<?
+	setTimeout(function()
+	{
+		echo('setTimeout');
+	},1000);
+
+	var http = require('http');
+	http.get("http://www.bing.com", function(res) 
+	{
+  		echo("www.bing.com Response: " + res.statusCode+'<br>');
+  		res.destroy();//res.socket.end();//call this or the page will timeout
+	});
+?>
+<p>END</p>

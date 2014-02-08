@@ -1,7 +1,7 @@
 <pre>
 <?
 	var fs = require('fs');
-	fs.readFile(__dirname+'/'+$_GET['file'],wrapper(function(err,data)
+	fs.readFile(__dirname+'/'+$_GET['file'],function(err,data)
 	{
 		if(err) 
 		{
@@ -22,6 +22,6 @@
 		str = str.replace(/\&/g,'&amp');
 		str = str.replace(/\</g,'&lt;');
 		echo(str);
-	}));
+	});
 ?>
 </pre>

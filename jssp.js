@@ -1,11 +1,10 @@
 /*
 	Global Variable & Function:
-	__filename __dirname global $_GET $_POST $_FILE $_SERVER $_ENV
-	echo exit wrapper include set_time_limit session_read session_write header headers_sent
+	__filename __dirname $_GET $_POST $_FILE $_SERVER $_ENV $_SESSION
+	echo exit include set_time_limit session_read session_write header headers_sent
 
 	Attention:
-	1. All callback function need wrap by wrapper(cb)
-	2. while(true) will freeze whole JSSP
+	1. while(true) will freeze whole JSSP
 */
 
 var fs = require('fs');
@@ -151,87 +150,77 @@ function JSSPCore()
 		function jsspGlobalObject(req,res,code,codefilename,postobj,fileobj)
 		{
 			var html = [];
-			var wrappercount = 0;
+			var domainobj;
+			var moduleobj;
+			var activeobj;
+
+			var domaintmp = require('domain').create();
+			domaintmp.on('error',function(){});
+			domaintmp.flag_temp = true;
 
 			var jssp = this;
-			jssp.__filename = codefilename.slice(0,codefilename.length-3);
-			jssp.__dirname  = path.dirname(codefilename);
-			jssp.global = {};//communicate between include files
+			this.domaintmp = domaintmp;
+			this.__filename = codefilename.slice(0,codefilename.length-3);
+			this.__dirname  = path.dirname(codefilename);
 
-			var maxtimer = setTimeout(function()
+			var maxtimer;
+			var maxtimercallback = function()
 			{
-				maxtimer = undefined;
+				jssp.maxtimer = undefined;
 
 				var str = 'EXCEED MAXEXECUTETIME: ' + codefilename;
+				if(activeobj) str += '\nWAITING ON THIS OBJECT:\n' + util.inspect(activeobj,{depth:0});
 				jssp.internalexit(jssp.errorformat(str));
-			},MaxExecuteTime);
+			};
 
-			this.verify = function(arg)
+			this.setmaxtimer = function(timeout)
 			{
-				//call echo/exit in a unwrappered callback, will return a error
-				var caller = arg.callee.caller;
-				while(caller) {
-					if(caller.$$wrapperflag) { return true; }
-					caller = caller.caller;
-				}
-
-				var str = 'NO WRAPPER IN CALLBACK: ' + codefilename;
-				str = str + '\n' + arg.callee.caller.toString();
-				jssp.internalexit(jssp.errorformat(str));
-				return false;
+				domaintmp.enter();
+				if(maxtimer) clearTimeout(maxtimer);
+				maxtimer = setTimeout(maxtimercallback,timeout);
+				domaintmp.exit();
 			}
+			this.setmaxtimer(MaxExecuteTime);
+
 			this.echo = function(str)
 			{
-				if(!res) return;
-				if(!jssp.verify(arguments) ) return;
-
-				res.write(''+str);
+				domaintmp.enter();
+				if(res) res.write(''+str);
+				domaintmp.exit();
 			};
 			this.exit = function(str)
 			{
-				if(!res) return;
-				if(!jssp.verify(arguments) ) return;
-
-				jssp.internalexit(str);
+				if(res) jssp.internalexit(str);
 			};
 			this.internalexit = function(str)
 			{
 				if(maxtimer) clearTimeout(maxtimer);
 
-				if(str) { res.end(''+str); }
-				else { res.end(); }
+				domaintmp.enter();
+				if(str) { res.end(''+str); } else { res.end(); }
+				domaintmp.exit();
+
 				res = undefined;
 			}
 
-			this.wrapper = function(cb)
-			{
-				if(!res) return;
-
-				wrappercount++;
-				var ret = function()
-				{
-					if(!ret.$$reentrant) wrappercount--;
-					ret.$$reentrant = true;
-
-					try{ cb.apply(this,arguments); }
-					catch(e){ jssp.exit(jssp.errorformat(e)); }
-
-					jssp.runnext();
-				}
-				ret.$$wrapperflag = true;
-				ret.$$reentrant   = false;
-				return ret;
-			}
 			this.runnext = function()
 			{
-				if(!res) return;
-				if(wrappercount) return;//wait
-				
-				if(html.length) { process.nextTick(html.shift()); }
-				else 
+				if(res)
 				{
-					if(jssp.includecallback) { jssp.includecallback(); } //included jssp file execute finished
-					else { jssp.internalexit(); } //request jssp file execute finished
+					if(jssp.checkDomain())
+					{
+						domaintmp.enter();
+						setTimeout(function(){ jssp.runnext(); },10);
+						domaintmp.exit();
+						return;
+					}
+					
+					if(html.length) { process.nextTick(html.shift()); }
+					else 
+					{
+						if(jssp.includecallback) { jssp.includecallback(moduleobj.exports); } //included jssp file finished
+						else { jssp.internalexit(); } //request jssp file execute finished
+					}
 				}
 			}
 			this.errorformat = function(e)
@@ -249,7 +238,6 @@ function JSSPCore()
 
 					jssp.runnext();
 				};
-				ret.$$wrapperflag = true;
 				html.push(ret);
 			};
 			this.html2js = function(cb)
@@ -272,11 +260,15 @@ function JSSPCore()
 
 			this.include = function(jsspfile,cb)
 			{
-				//communicate by global
 				jsspfile = path.resolve(BaseDirectory,jsspfile);
 
 				if(undefined==cb) cb = function(){};
-				var includecallback = jssp.wrapper(cb);
+				var includecallback = function()
+				{
+					clearInterval(includecallback.id);
+					cb.apply(undefined,arguments);
+				}
+				includecallback.id = setInterval(function(){},1000000000);//hold by domainobj
 
 				fs.readFile(jsspfile,{'encoding':'utf8'},function(e, data)
 				{
@@ -286,39 +278,58 @@ function JSSPCore()
 					process.emit('include',req,res,code,jsspfile+'.js',jssp,includecallback);
 				});
 			}
-			this.require = require;
+			this.require = function()
+			{
+				domaintmp.enter()
+				var obj = require.apply(this,arguments);
+				domaintmp.exit();
+				return obj;
+			}
 			this.Buffer  = Buffer;
-			this.setTimeout = function()
-			{
-				var ret = setTimeout.apply(this,arguments);
-				ret.$$timeoutflag = true;
-				return ret;
-			}
-			this.clearTimeout = function(timer)
-			{
-				if(!timer) return;
-				if(timer.$$timeoutflag) wrappercount--;
-				delete timer.$$timeoutflag;
-				return clearTimeout(timer);
-			}
-			this.setInterval = function(cb)
-			{
-				if(cb) if(cb.$$wrapperflag) cb.$$reentrant = true;
-				var ret = setInterval.apply(this,arguments);
-				ret.$$intervalflag = true;
-				return ret;
-			}
-			this.clearInterval = function(timer)
-			{
-				if(!timer) return;
-				if(timer.$$intervalflag) wrappercount--;
-				delete timer.$$intervalflag;
-				return clearInterval(timer);
-			}
+			this.setTimeout = setTimeout;
+			this.clearTimeout = clearTimeout;
+			this.setInterval = setInterval;
+			this.clearInterval = clearInterval;
 
 			this.initphp = function()
 			{
 				phpemulate(jssp,req,res,postobj,fileobj,codefilename);
+			}
+			this.createDomain = function()
+			{
+				domainobj = require('domain').create();
+				domainobj.flag_jssp = true;
+				domainobj.on("error",function(e){ jssp.internalexit(jssp.errorformat(e)); });
+				return domainobj;
+			}
+			this.checkDomain = function()
+			{
+				activeobj = undefined; //use for max execute time error tip
+				var handles = process._getActiveHandles();//timeout interval
+				for(var i=0;i<handles.length;i++)
+				{
+					var handle = handles[i];
+					if(handle.domain===domainobj) { activeobj=handle; return true; }
+					if(handle._idleNext) if(handle._idleNext.domain===domainobj) 
+						{ activeobj=handle; return true; }
+				}
+
+				var requests = process._getActiveRequests();//fs
+				for(var i=0;i<requests.length;i++)
+				{
+					var request = requests[i];
+					if(request.domain===domainobj) { activeobj=request; return true; }
+				}
+
+				return false;
+			}
+			this.createModule = function()
+			{
+				moduleobj = {};
+				moduleobj.id = jssp.__filename;
+				moduleobj.filename = jssp.__filename;
+				moduleobj.exports = undefined;
+				return moduleobj;
 			}
 		}
 
@@ -517,8 +528,10 @@ function phpemulate(jssp,req,res,postobj,fileobj,codefilename)
 		if(!s) s = {}; s.value = value; s.timeout = timeout;
 		if(!s.timeout) s.timeout = 24*60*1000;
 
+		jssp.domaintmp.enter();
 		if(s.timer) clearTimeout(s.timer);
 		s.timer = setTimeout(function(){ delete SESSION[name]; },s.timeout);
+		jssp.domaintmp.exit();
 
 		SESSION[name] = s;
 	}
@@ -526,8 +539,10 @@ function phpemulate(jssp,req,res,postobj,fileobj,codefilename)
 	{
 		var s = SESSION[name]; if(!s) return undefined;
 
+		jssp.domaintmp.enter();
 		if(s.timer) clearTimeout(s.timer);
 		s.timer = setTimeout(function(){ delete SESSION[name]; },s.timeout);
+		jssp.domaintmp.exit();
 
 		return s.value;
 	}
@@ -584,9 +599,7 @@ function phpemulate(jssp,req,res,postobj,fileobj,codefilename)
 
 	jssp.set_time_limit = function(timeout)
 	{
-		var cb = maxtimer._onTimeout;
-		clearTimeout(maxtimer);
-		maxtimer = setTimeout(cb,timeout);
+		jssp.setmaxtimer(timeout);
 	}
 	jssp.header = function(name,value,responsecode)
 	{
@@ -607,7 +620,6 @@ function VMStart()
 {
 	function EvalCode(code,jssp)
 	{
-		var global    = jssp.global;
 		var process   = undefined;
 		var jsspGlobalObject = undefined;
 		var console   = undefined;
@@ -651,8 +663,8 @@ function VMStart()
 		var header          = jssp.header;
 		var headers_sent    = jssp.headers_sent;
 
-		var $$domainobj = require('domain').create();
-		$$domainobj.on("error",function(e){ $$internalexit($$errorformat(e)); });
+		var module      = jssp.createModule();
+		var $$domainobj = jssp.createDomain();
 		
 		try {
 		 	eval(code);
@@ -681,9 +693,7 @@ function VMStart()
 
 	process.on('include',function(req,res,code,codefilename,jssp,includecallback)
 	{
-		//the included jssp file return value to parent by jssp.global
 		var jsspnewobj = new jsspGlobalObject(req,res,code,codefilename);
-		jsspnewobj.global = jssp.global;
 		jsspnewobj.includecallback = includecallback; //will be called in jsspnewobj.runnext
 
 		EvalCode(code,jsspnewobj);
@@ -691,7 +701,7 @@ function VMStart()
 }
 
 
-if(process.argv[1]==__filename)
+if(require.main === module)
 {
 	//run without be required
 	var argv = process.argv;

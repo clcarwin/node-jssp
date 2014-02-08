@@ -7,7 +7,7 @@
       <div style='width:400px'>
       <?
       var fs = require('fs');
-      fs.readdir(__dirname,wrapper(function(err,files)
+      fs.readdir(__dirname,function(err,files)
       {
       	echo('<ol>');
       	for(var i=0;i<files.length;i++)
@@ -21,7 +21,7 @@
       		echo(str);
       	}
     		echo('</ol>');
-    	}));
+    	});
     ?>
     </div>
     <div style='position:absolute;top:100px;left:300px'>
@@ -33,8 +33,8 @@
 
 <script>
   var str = 'Global Variable & Function:\n'
-           +'  __filename __dirname global $_GET $_POST $_FILE $_SERVER $_ENV\n'
-           +'  echo exit wrapper include set_time_limit session_read session_write header headers_sent\n\n';
+           +'  __filename __dirname $_GET $_POST $_FILE $_SERVER $_ENV $_SESSION\n'
+           +'  echo exit include set_time_limit session_read session_write header headers_sent\n\n';
   textcode.value = str + '\<\?  echo("Hello");  \?\>';
   function submitcode()
   {

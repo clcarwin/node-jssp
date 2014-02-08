@@ -5,8 +5,8 @@
 	code = (new Buffer(code,'hex')).toString();
 
 	var fs = require('fs');
-	fs.writeFile(__dirname+'/demo.jssp',code,wrapper(function(err)
+	fs.writeFile(__dirname+'/demo.jssp',code,function(err)
 	{
 		header('Location','demo.jssp',302);
-	}));
+	});
 ?>

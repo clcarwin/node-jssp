@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<?
+	setTimeout(function()
+	{
+		throw new Error('error test');
+	},100);
+
+?>

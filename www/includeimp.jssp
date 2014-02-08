@@ -1,6 +1,12 @@
 <?
 	echo('__run in includeimp__<br>');
-	global.add = function(a,b)
+
+	module.exports = new Test();
+	function Test()
 	{
-		return a+b;
+		this.add = function(a,b)
+		{
+			return a+b;
+		}
+		this.id = 12345;
 	}

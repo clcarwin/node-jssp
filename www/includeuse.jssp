@@ -1,13 +1,8 @@
 <!DOCTYPE html>
 <?
-	if(global.add) { echo('global.add exist<br>'); }
-	else { echo('global.add NOT exist<br>'); }
-
-	include('includeimp.jssp',function()
+	include('includeimp.jssp',function(obj)
 	{
-		if(global.add) { echo('after include global.add exist<br>'); }
-		else { echo('after include global.add NOT exist<br>'); }
-
-		echo('1+2='+global.add(1,2));
+		echo('1+2='+obj.add(1,2));
 	});
 ?>
+ddd
