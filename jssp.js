@@ -312,8 +312,11 @@ function JSSPCore()
 				{
 					var handle = handles[i];
 					if(handle.domain===domainobj) { activeobj=handle; return true; }
-					if(handle._idleNext) if(handle._idleNext.domain===domainobj) 
-						{ activeobj=handle; return true; }
+					if(handle._idleNext) 
+					{
+						var obj = jssp.checkTimer(handle,domainobj);
+						if(obj) { activeobj=obj; return true; }
+					}
 				}
 
 				var requests = process._getActiveRequests();//fs
@@ -324,6 +327,18 @@ function JSSPCore()
 				}
 
 				return false;
+			}
+			this.checkTimer = function(list,d)
+			{
+				var head = list._idleNext;
+				var curr = head;
+
+				while(true)
+				{
+					if(curr.domain===d) return curr;
+					curr = curr._idleNext;
+					if(curr===head) return undefined;
+				}
 			}
 			this.createModule = function()
 			{
