@@ -152,6 +152,8 @@ function JSSPCore()
 		function jsspGlobalObject(req,res,code,codefilename,postobj,fileobj)
 		{
 			var html = [];
+			var timermap = {};
+			var timerid  = 0;
 			var domainobj;
 			var moduleobj;
 			var activeobj;
@@ -197,6 +199,8 @@ function JSSPCore()
 			this.internalexit = function(str)
 			{
 				if(maxtimer) clearTimeout(maxtimer);
+				for(var id in timermap)
+					{ clearTimeout(timermap[id]); clearInterval(timermap[id]); delete timermap[id];}
 
 				domaintmp.enter();
 				if(str) { res.end(''+str); } else { res.end(); }
@@ -267,10 +271,11 @@ function JSSPCore()
 				if(undefined==cb) cb = function(){};
 				var includecallback = function()
 				{
-					clearInterval(includecallback.id);
+					jssp.clearInterval(includecallback.id);
 					cb.apply(undefined,arguments);
 				}
-				includecallback.id = setInterval(function(){},1000000000);//hold by domainobj
+				includecallback.id = jssp.setInterval(function(){},1000000000);//hold by domainobj
+				includecallback.id.flag_include = true;
 
 				fs.readFile(jsspfile,{'encoding':'utf8'},function(e, data)
 				{
@@ -288,10 +293,42 @@ function JSSPCore()
 				return obj;
 			}
 			this.Buffer  = Buffer;
-			this.setTimeout = setTimeout;
-			this.clearTimeout = clearTimeout;
-			this.setInterval = setInterval;
-			this.clearInterval = clearInterval;
+			this.setTimeout = function(cb,timeout)
+			{
+				var id = timerid++;
+				var newcb = function()
+				{
+					delete timermap[id];
+					cb();
+				}
+				var timer = setTimeout(newcb,timeout);
+				timer.$$id = id;
+				timermap[id] = timer;
+				return timer;
+			}
+			this.clearTimeout = function(timer)
+			{
+				delete timermap[timer.$$id];
+				return clearTimeout(timer);
+			}
+			this.setInterval = function(cb,timeout)
+			{
+				var id = timerid++;
+				var newcb = function()
+				{
+					delete timermap[id];
+					cb();
+				}
+				var timer = setInterval(newcb,timeout);
+				timer.$$id = id;
+				timermap[id] = timer;
+				return timer;
+			}
+			this.clearInterval = function(timer)
+			{
+				delete timermap[timer.$$id];
+				return clearInterval(timer);
+			}
 
 			this.initphp = function()
 			{
@@ -307,16 +344,18 @@ function JSSPCore()
 			this.checkDomain = function()
 			{
 				activeobj = undefined; //use for max execute time error tip
-				var handles = process._getActiveHandles();//timeout interval
+
+				for(var key in timermap)
+				{
+					activeobj = timermap[key];
+					return true;
+				}
+
+				var handles = process._getActiveHandles();
 				for(var i=0;i<handles.length;i++)
 				{
 					var handle = handles[i];
 					if(handle.domain===domainobj) { activeobj=handle; return true; }
-					if(handle._idleNext) 
-					{
-						var obj = jssp.checkTimer(handle,domainobj);
-						if(obj) { activeobj=obj; return true; }
-					}
 				}
 
 				var requests = process._getActiveRequests();//fs
@@ -327,18 +366,6 @@ function JSSPCore()
 				}
 
 				return false;
-			}
-			this.checkTimer = function(list,d)
-			{
-				var head = list._idleNext;
-				var curr = head;
-
-				while(true)
-				{
-					if(curr.domain===d) return curr;
-					curr = curr._idleNext;
-					if(curr===head) return undefined;
-				}
 			}
 			this.createModule = function()
 			{

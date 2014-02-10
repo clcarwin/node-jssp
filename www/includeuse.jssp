@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <?
+	set_time_limit(10*1000);
 	include('includeimp.jssp',function(obj)
 	{
 		echo('1+2='+obj.add(1,2));

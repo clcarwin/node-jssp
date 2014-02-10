@@ -6,5 +6,6 @@
 	{
 		echo('hi');
 	},11*1000);
+	timer.id = ''+(new Date());
 
 ?>

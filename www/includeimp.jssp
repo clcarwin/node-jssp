@@ -10,3 +10,8 @@
 		}
 		this.id = 12345;
 	}
+
+	setTimeout(function()
+	{
+		echo('wait in include<br>');
+	},1000);
