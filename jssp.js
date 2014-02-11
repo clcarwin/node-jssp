@@ -121,10 +121,11 @@ function JSSPCore()
 
 			if('.jssp'!=path.extname(filename))
 			{
-				fs.readFile(filename,function(err, data)
+				fs.stat(filename,function(err,stats)
 				{
 					if(err) { cb(err); return; }
-					res.end(data);
+					res.setHeader('Content-Length', stats.size);
+					fs.createReadStream(filename).on('error',function(){}).pipe(res);
 				});
 			}
 			else
