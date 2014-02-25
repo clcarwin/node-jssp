@@ -36,24 +36,22 @@ server.setExternal({...});//this obj can be access by $_ENV['external']
 <!DOCTYPE html>
 <html>
 <body>
-<? 
-    var os = require('os');
-    echo('System Uptime: '+Math.floor(os.uptime()));
-?>
+<?  var os = require('os');
+    echo('System Uptime: '+Math.floor(os.uptime())); ?>
 </body>
 </html>
 ```
 
 ```js
-<?
-    //if xxx
-    header('Location','http://www.google.com',302);
+<?  var http = require('http');
+    http.get({hostname:'google.com', path:'/', agent:false}, function (res) {
+        echo(res.statusCode);
+    });
 ?>
 ```
 
 ```js
-<?
-    session_start();
+<?  session_start();
     if(!$_SESSION['time']) $_SESSION['time'] = ''+(new Date());
 ?>
 ```
