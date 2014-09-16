@@ -46,6 +46,11 @@ function JSSPCore()
 			{
 				res.write(data);
 			});
+			child.stderr.on('data',function(data)
+			{
+				//console.log(data.toString());
+				res.write(data);
+			});
 			child.on('close',function()
 			{
 				res.end();
@@ -57,8 +62,9 @@ function JSSPCore()
 				{
 					try {
 						var ret = eval(m.func.toString());
-						child.send({result:ret.toString()});
-					}catch(e){}
+						if(undefined==ret) ret='';
+						child.send({"result":ret.toString()});
+					}catch(e){ console.log(e); }
 				}
 			});
 		});
@@ -74,10 +80,17 @@ function JSSPCore()
 
 	this.CreateChild = function()
 	{
+		var exit = process.exit;
+		var headerssent = false;
+		process.on('uncaughtException', function(e)
+		{
+			process.echo(e);
+			process.exit();
+		});
 		process.on('message',function(m)
 		{
-			if(m.result)
-			{ 
+			if(undefined !== m.result)
+			{
 				var cb = process.callcb.shift();
 				if(cb) cb(m.result);
 			}
@@ -88,14 +101,28 @@ function JSSPCore()
 			process.callcb.push(cb);
 			process.send({func:f.toString()});
 		}
+		process.echo = function(str)
+		{
+			headerssent = true;
+			if(!Buffer.isBuffer(str)) str=''+str;
+			process.stdout.write(str);
+		}
+		process.exit = function()
+		{
+			process.nextTick(exit);
+		}
 
 		var filename = path.resolve(BaseDirectory,'./'+process.env.JSSP_SELF);
 		ServerFile(filename);
 
-		function SetHeader(name,value,cb)//cb use to check if finished
+		function SetHeader(name,value,responsecode,cb)//cb use to check if finished
 		{
-			var func = 'res.setHeader({0},{1})'
-			func = func.replace('{0}',name).replace('{1}',value);
+			var func = 'res.setHeader("{0}","{1}");'
+			func = func.replace('{0}',''+name).replace('{1}',''+value);
+
+			if(responsecode) func += 'res.statusCode={2};';
+			func = func.replace('{2}',''+responsecode);
+
 			process.call(func,cb);
 		}
 
@@ -103,11 +130,11 @@ function JSSPCore()
 		{
 			var cb = function(err)
 			{
-				if( (''+err).indexOf('ENOENT')>=0 ) res.write('<h1>404 Not Found</h1>');
+				if( (''+err).indexOf('ENOENT')>=0 ) process.echo('<h1>404 Not Found</h1>');
 				var str = '<p>'+err+'</p>';
 				var dir = path.normalize(__dirname+path.sep+'..');
-				process.stdout.write(str.replace(dir,'...'));
-				process.exit;
+				process.echo(str.replace(dir,'...'));
+				process.exit();
 			}
 
 			if('.jssp'!=path.extname(filename))
@@ -115,9 +142,18 @@ function JSSPCore()
 				fs.stat(filename,function(err,stats)
 				{
 					if(err) { cb(err); return; }
-					SetHeader('Content-Length', stats.size,function()
+					SetHeader('Content-Length', stats.size, undefined,function()
 					{
-						fs.createReadStream(filename).on('error',function(){}).pipe(process.stdout);
+						fs.createReadStream(filename).on('error',function(e)
+						{
+							process.exit();
+						}).on('end',function()
+						{
+							process.exit();
+						}).on('data',function(data)
+						{
+							process.echo(data);
+						})
 					});
 				});
 			}
@@ -138,19 +174,18 @@ function JSSPCore()
 		function JSSPInit()
 		{
 			var html = [];
-			global.echo = function(str)
-			{
-				process.stdout.write(str);
-			}
-			global.exit = function(str)
-			{
-				process.exit();
-			}
+			global._includecallback = undefined;
+			global._exports = undefined;
+			global.echo = process.echo;
+			global.exit = process.exit;
+
 			global._runnext = function()
 			{
 				count = process._getActiveHandles().length + process._getActiveRequests().length;
-				if(undefined==runnext.count) runnext.count=count;
-				if(count!=runnext.count) { setTimeout(function(){ runnext(); },5); return; }
+				if(undefined==_runnext._count) _runnext._count=count;
+
+				if(count>_runnext._count) { setTimeout(function(){ _runnext(); },5); return; }
+				else _runnext._count=count;
 
 				if(html.length) { process.nextTick(html.shift()); }
 				else
@@ -175,9 +210,21 @@ function JSSPCore()
 			}
 		}
 
-		function PHPinit()
+		function PHPInit()
 		{
+			var urlobj  = url.parse(process.env['QUERY_STRING'],true);
+			global.GET = global._GET = global.$_GET = urlobj.query;
+			global.SERVER = global._SERVER = global.$_SERVER = process.env;
+			global.ENV = global._ENV = global.$_ENV = process.env;
 
+			global.header = function(name,value,responsecode)
+			{
+				SetHeader(name,value,responsecode,function(){});
+			}
+			global.headers_sent = function()
+			{
+				return headerssent;
+			}
 		}
 	}
 }
@@ -186,9 +233,6 @@ if(process.env.JSSP_FLAG)	//jssp child process
 {
 	var jsspcore = module.exports;
 	var child = jsspcore.CreateChild();
-
-	console.log(process.env);
-	//process.exit();
 }
 else	//server
 {
@@ -264,6 +308,9 @@ function jssp2js(str)
 
 function renderjssp(code,filename)
 {
+	var __filename = filename;
+	var __dirname = path.dirname(filename);
+
 	eval(code);
 	global._runnext();
 }
