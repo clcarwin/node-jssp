@@ -94,9 +94,8 @@ function JSSPCore()
 
 		function SetHeader(name,value,cb)//cb use to check if finished
 		{
-			var func = 'res.setHeader(arg0,arg1)'
-			func = func.replace('arg0',name);
-			func = func.replace('arg1',value);
+			var func = 'res.setHeader({0},{1})'
+			func = func.replace('{0}',name).replace('{1}',value);
 			process.call(func,cb);
 		}
 
@@ -129,9 +128,56 @@ function JSSPCore()
 					if(err) { cb(err); return; }
 					var code = jssp2js(data);
 
+					JSSPInit();
+					PHPInit();
 					renderjssp(code,filename);
 				});
 			}
+		}
+
+		function JSSPInit()
+		{
+			var html = [];
+			global.echo = function(str)
+			{
+				process.stdout.write(str);
+			}
+			global.exit = function(str)
+			{
+				process.exit();
+			}
+			global._runnext = function()
+			{
+				count = process._getActiveHandles().length + process._getActiveRequests().length;
+				if(undefined==runnext.count) runnext.count=count;
+				if(count!=runnext.count) { setTimeout(function(){ runnext(); },5); return; }
+
+				if(html.length) { process.nextTick(html.shift()); }
+				else
+				{
+					if(_includecallback) _includecallback(_exports);
+					else global.exit();
+				}
+			}
+			global._arraypush = function(cb)
+			{
+				html.push(function(){ cb(); _runnext(); });
+			}
+			global._html2js = function(cb)
+			{
+				var str = cb.toString();
+				var list= str.split('\n');
+
+				list.shift(); list.pop();
+
+				for(var i=0;i<list.length;i++) list[i] = list[i].substring(2);
+				return list.join('\n');
+			}
+		}
+
+		function PHPinit()
+		{
+
 		}
 	}
 }
@@ -189,10 +235,9 @@ function jssp2js(str)
 	var re = new RegExp(spliter,'g');
 	str = str.replace(/\<\?/g,spliter+'/*<?*/');
 	str = str.replace(/\?\>/g,'/*?>*/'+spliter);
-	str = str.replace(/session_start\( *\)/,'($_SESSION=session_start())');
+	//str = str.replace(/session_start\( *\)/,'($_SESSION=session_start())');
 
 	var list = str.split(spliter);
-
 	for(var i=0;i<list.length;i++)
 	{
 		var ss = list[i];
@@ -200,20 +245,14 @@ function jssp2js(str)
 
 		if('/*<?*/'==ss.substring(0,6))
 		{
-			ss = '$$arraypush(function(){\n'
-				+'  $$domainobj.run(function(){\n'
-				+ ss + '\n'
-				+'  }.bind(undefined));\n'
-				+'});\n';
+			ss = '_arraypush(function(){\n' + ss + '\n' + '});\n';
 			list[i] = ss;
 		}
 		else
 		{
 			ss = '//'+ss.replace(/\n/g,'\n//');
-			ss = '$$arraypush(function(){\n'
-				+'    echo($$html2js(function(){\n'
-				+ ss + '\n'
-				+'    }));\n'
+			ss = '_arraypush(function(){\n'
+				+'    echo(_html2js(function(){\n' + ss + '\n' +' }));\n'
 				+'});\n';
 			list[i] = ss;
 		}
@@ -225,7 +264,8 @@ function jssp2js(str)
 
 function renderjssp(code,filename)
 {
-	
+	eval(code);
+	global._runnext();
 }
 
 
