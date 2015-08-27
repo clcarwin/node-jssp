@@ -1,0 +1,16 @@
+--------begin--------
+<? 
+var net = require('net');
+var client = net.connect({host:'54.223.199.213',port: 8000},
+    function() { //'connect' listener
+  echo('connected to server!');
+});
+client.on('data', function(data) {
+  echo(data.toString('hex'));
+});
+client.on('end', function() {
+  echo('disconnected from server');
+});
+
+?>
+--------end--------

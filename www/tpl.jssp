@@ -1,0 +1,10 @@
+<html>
+--------begin--------<br>
+<? 
+echo('hi');
+TPL.list = [1,2,3,4,5];
+TPL.age = [7,7,8,8,9,9];
+TPL.name = 'myname'
+?>
+<br>{{---{{name}}-----{{list[i]}}----{{age[]}}----<br>}}
+</html>
