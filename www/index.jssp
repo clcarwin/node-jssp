@@ -9,20 +9,15 @@
       var fs = require('fs');
       fs.readdir(__dirname,function(err,files)
       {
-      	echo('<ol>');
-      	for(var i=0;i<files.length;i++)
-      	{
-          var str = '<li><a href="{name}"><strong>{name}</strong></a>'
-                   +'&nbsp;&nbsp;&nbsp;&nbsp;'
-                   +'<a href="showsrc.jssp?file={name}">src</a></li>';
-      		str = str.replace('{name}',files[i]);
-          str = str.replace('{name}',files[i]);
-          str = str.replace('{name}',files[i]);
-      		echo(str);
-      	}
-    		echo('</ol>');
+      	if(err) files=[];
+        render('files',files);
     	});
     ?>
+    <ol>
+    {{<li><a href="{{files[]}}"><strong>{{files[]}}</strong></a>
+      &nbsp;&nbsp;&nbsp;&nbsp;
+      <a href="showsrc.jssp?file={{files[]}}">src</a></li>}}
+    </ol>
     </div>
     <div style='position:absolute;top:100px;left:300px'>
       <textarea id='textcode' style='width:500px;height:380px'>

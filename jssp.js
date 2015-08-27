@@ -1,7 +1,7 @@
 /*
 	Global Variable & Function:
-	__filename __dirname $_GET $_POST $_FILE $_SERVER $_ENV $_SESSION
-	echo exit include set_time_limit session_read session_write header headers_sent
+	__filename __dirname GET POST FILE SERVER ENV TPL
+	echo exit include set_time_limit header render
 
 	Attention:
 	1. while(true) will freeze whole JSSP
@@ -115,6 +115,97 @@ function JSSPCore()
 	}
 }
 
+function tplmachine(html)
+{
+	var l  = 0;	//{ count
+	var ll = 0;	//{{ count
+	var r  = 0;
+	var rr = 0;
+
+	var str = '';
+	var tpllist = [];
+	var arrlist = [];
+	var result  = '';
+
+	function put(c)
+	{
+		if('{'==c) { if(ll<2) l++; } else
+		if('}'==c) { if(ll>0) r++; }
+		else
+		{
+			if(l) {l=0;str+='{';}
+			if(r) {r=0;str+='}';}
+			str += c;
+		}
+
+		if(2==l)
+		{
+			l=0;ll++;
+			if(1==ll){ tplpushtxt(str); str=''; tplend(); }		//0->1
+			if(2==ll){ tplpushtxt(str); str=''; }				//1->2
+		}
+		if(2==r)
+		{
+			r=0;ll--;
+			if(0==ll)
+			{
+				if(tpllist.length){ tplpushtxt(str) }	//2->1->0
+				else{ tplpushname(str) }				//1->0
+				str='';
+				tplend();
+			}
+			if(1==ll){ tplpushname(str); str=''; }		//2->1
+		}
+	}
+
+
+	function tplpushtxt(str)
+	{
+		if(str.length>0)
+		{
+			str =  '//'+str.replace(/\n/g,'\n//');
+			str = 'echo(function(){\n'+str+'\n});\n';
+			tpllist.push(str);
+		}
+	}
+	function tplpushname(str)
+	{
+		if( (str.indexOf('[')>=0)&&(str.indexOf(']')>=0) )
+		{
+			var arr = str.replace('[]','');
+			arr = arr.replace('[i]','');
+			arrlist.push('$$TPL.'+arr);
+			str = arr + '[i]';
+		}
+
+		str = 'echo($$TPL.'+str+');\n';
+		tpllist.push(str);
+	}
+	function tplend()
+	{
+		var js = '';
+		if(tpllist.length==0) { js = ''; }
+		else if(tpllist.length>1)
+		{
+			if(arrlist.length) arrlist.push(arrlist[0]+'.length');
+			else arrlist.push('1');
+			js += 'for(var i=0;i<Math.min('+arrlist.join('.length,')+');i++)\n{\n';
+			js += tpllist.join('');
+			js += '\n}\n';
+		}
+		else { js = tpllist[0]; }
+		tpllist.splice(0, tpllist.length);
+		arrlist.splice(0, arrlist.length);
+
+		result += js;
+	}
+
+	for(var i=0;i<html.length;i++) put(html[i]);
+	tplpushtxt(str); tplend();
+	result = '$$arraypush(function(){\n'+result+'});\n';
+	return result;
+}
+
 function jssp2js(str)
 {
 	//*.jssp file to js code
@@ -135,22 +226,11 @@ function jssp2js(str)
 		if('/*<?*/'==ss.substring(0,6))
 		{
 			ss = '$$arraypush(function(){\n'
-				+'  $$domainobj.run(function(){\n'
 				+ ss + '\n'
-				+'  }.bind(undefined));\n'
 				+'});\n';
 			list[i] = ss;
 		}
-		else
-		{
-			ss = '//'+ss.replace(/\n/g,'\n//');
-			ss = '$$arraypush(function(){\n'
-				+'    echo($$html2js(function(){\n'
-				+ ss + '\n'
-				+'    }));\n'
-				+'});\n';
-			list[i] = ss;
-		}
+		else{ list[i] = tplmachine(ss); }
 	}
 
 	return list.join('\n');;
@@ -232,7 +312,9 @@ function PHPInit(jssp,req,res,code,codefilename,postobj,fileobj)
 
 	jssp.echo = function(str)
 	{
-		jssp.domainobj.run(function(){ res.write(''+str) });
+		if(typeof str === "function") str = jssp.func2str(str);
+		if(typeof str !== "string")   str = ''+str;
+		jssp.domainobj.run(function(){ res.write(str) });
 	}
 	jssp.exit = function(str)
 	{
@@ -260,6 +342,8 @@ function JSSPCoreInit(req,res,code,codefilename,postobj,fileobj)
 {
 	var jssp = {};
 	jssp.BaseDirectory = BaseDirectory;
+	jssp.__filename    = codefilename.slice(0,codefilename.length-3);
+	jssp.__dirname     = path.dirname(codefilename);
 
 	var html = []
 	jssp.html = html;
@@ -275,7 +359,7 @@ function JSSPCoreInit(req,res,code,codefilename,postobj,fileobj)
 	{
 		if(!jssp.running) return;
 		if(objectset.size>0) return;
-		if(html.length) { process.nextTick(html.shift()); return; }
+		if(html.length) { jssp.domainobj.run(function(){ html.shift().call() });return; }
 
 		jssp.internalexit();
 		return;
@@ -296,6 +380,10 @@ function JSSPCoreInit(req,res,code,codefilename,postobj,fileobj)
 	var domainobj = require('domain').create();
 	domainobj.on("error",function(e){ jssp.internalexit(jssp.errorformat(e)); });
 	jssp.domainobj = domainobj;
+
+	var TPL = {};
+	jssp.TPL = TPL;
+	jssp.render = function(name,value){ TPL[name] = value; }
 
 	var maxtimer = undefined;
 	jssp.setmaxtimer = function(timeout)
@@ -338,7 +426,7 @@ function JSSPInit(jssp,req,res,code,codefilename,postobj,fileobj)
 		var fn = function(){ cb(); jssp.runnext(); };
 		html.push(fn);
 	};
-	jssp.html2js = function(cb)
+	jssp.func2str = function(cb)
 	{
 		var str = cb.toString();
 		var list= str.split('\n');
@@ -409,38 +497,38 @@ function VMStart()
 	function EvalCode(code,jssp)
 	{
 		var process   = undefined;
-		var jsspGlobalObject = undefined;
+		var JSSPCoreInit = undefined;
 		var console   = undefined;
 		var VMStart   = undefined;
 		var EvalCode  = undefined;
 
 		var echo      = jssp.echo;
 		var exit      = jssp.exit;
-		var wrapper   = jssp.wrapper;
 		var include   = jssp.include;
 		var __filename= jssp.__filename;
 		var __FILE__  = jssp.__filename;
 		var __dirname = jssp.__dirname;
 		var __DIR__   = jssp.__dirname;
 
-		var require      = jssp.require;
-		var Buffer       = jssp.Buffer;
-		var setTimeout   = jssp.setTimeout;
-		var setInterval  = jssp.setInterval;
-		var clearTimeout = jssp.clearTimeout;
-		var clearInterval= jssp.clearInterval;
+		var require        = jssp.require;
+		var Buffer         = jssp.Buffer;
+		var setTimeout     = jssp.setTimeout;
+		var setInterval    = jssp.setInterval;
+		var clearTimeout   = jssp.clearTimeout;
+		var clearInterval  = jssp.clearInterval;
+		var render         = jssp.render;
 
 		var $$arraypush    = jssp.arraypush;
-		var $$html2js      = jssp.html2js;
+		var $$TPL     = TPL    = jssp.TPL;
 
-		var $_GET     = jssp.$_GET;
-		var $_POST    = jssp.$_POST;
-		var $_FILE    = jssp.$_FILE;
-		var $_SERVER  = jssp.$_SERVER;
-		var $_ENV     = jssp.$_ENV;
-		var set_time_limit  = jssp.set_time_limit;
-		var header          = jssp.header;
-		
+		var $_GET     = GET    = jssp.$_GET;
+		var $_POST    = POST   = jssp.$_POST;
+		var $_FILE    = FILE   = jssp.$_FILE;
+		var $_SERVER  = SERVER = jssp.$_SERVER;
+		var $_ENV     = ENV    = jssp.$_ENV;
+		var set_time_limit     = jssp.set_time_limit;
+		var header             = jssp.header;
+
 
 		$$domainobj = jssp.domaincreate();
 		try{ eval(code) }catch(e)
@@ -451,9 +539,9 @@ function VMStart()
 	}
 	
 	var JSSPCoreInit = this.JSSPCoreInit;
-	var process = this.process;
-	var console = this.console;
-	this.VMStart = undefined;
+	var process      = this.process;
+	var console      = this.console;
+	this.VMStart     = undefined;
 	for(var key in this) delete this[key];
 	Object.freeze(this);
 
