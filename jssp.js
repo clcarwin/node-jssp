@@ -16,6 +16,9 @@ var path = require('path');
 var util = require('util');
 var querystring = require('querystring');
 
+var tplmachine = require('./tpl.js');
+var whileformachine = require('./whilefor.js');
+
 module.exports = new JSSPCore();
 
 var BaseDirectory  = './www/';
@@ -113,97 +116,6 @@ function JSSPCore()
 
 		return new vmObject();
 	}
-}
-
-function tplmachine(html)
-{
-	var l  = 0;	//{ count
-	var ll = 0;	//{{ count
-	var r  = 0;
-	var rr = 0;
-
-	var str = '';
-	var tpllist = [];
-	var arrlist = [];
-	var result  = '';
-
-	function put(c)
-	{
-		if('{'==c) { if(ll<2) l++; } else
-		if('}'==c) { if(ll>0) r++; }
-		else
-		{
-			if(l) {l=0;str+='{';}
-			if(r) {r=0;str+='}';}
-			str += c;
-		}
-
-		if(2==l)
-		{
-			l=0;ll++;
-			if(1==ll){ tplpushtxt(str); str=''; tplend(); }		//0->1
-			if(2==ll){ tplpushtxt(str); str=''; }				//1->2
-		}
-		if(2==r)
-		{
-			r=0;ll--;
-			if(0==ll)
-			{
-				if(tpllist.length){ tplpushtxt(str) }	//2->1->0
-				else{ tplpushname(str) }				//1->0
-				str='';
-				tplend();
-			}
-			if(1==ll){ tplpushname(str); str=''; }		//2->1
-		}
-	}
-
-
-	function tplpushtxt(str)
-	{
-		if(str.length>0)
-		{
-			str =  '//'+str.replace(/\n/g,'\n//');
-			str = 'echo(function(){\n'+str+'\n});\n';
-			tpllist.push(str);
-		}
-	}
-	function tplpushname(str)
-	{
-		if( (str.indexOf('[')>=0)&&(str.indexOf(']')>=0) )
-		{
-			var arr = str.replace('[]','');
-			arr = arr.replace('[i]','');
-			arrlist.push('$$TPL.'+arr);
-			str = arr + '[i]';
-		}
-
-		str = 'echo($$TPL.'+str+');\n';
-		tpllist.push(str);
-	}
-	function tplend()
-	{
-		var js = '';
-		if(tpllist.length==0) { js = ''; }
-		else if(tpllist.length>1)
-		{
-			if(arrlist.length) arrlist.push(arrlist[0]+'.length');
-			else arrlist.push('1');
-			js += 'for(var i=0;i<Math.min('+arrlist.join('.length,')+');i++)\n{\n';
-			js += tpllist.join('');
-			js += '\n}\n';
-		}
-		else { js = tpllist[0]; }
-		tpllist.splice(0, tpllist.length);
-		arrlist.splice(0, arrlist.length);
-
-		result += js;
-	}
-
-	for(var i=0;i<html.length;i++) put(html[i]);
-	tplpushtxt(str); tplend();
-	result = '$$arraypush(function(){\n'+result+'});\n';
-	return result;
 }
 
 function jssp2js(str)
@@ -312,9 +224,17 @@ function PHPInit(jssp,req,res,code,codefilename,postobj,fileobj)
 
 	jssp.echo = function(str)
 	{
-		if(typeof str === "function") str = jssp.func2str(str);
-		if(typeof str !== "string")   str = ''+str;
-		jssp.domainobj.run(function(){ res.write(str) });
+		if(Buffer.isBuffer(str))
+		{
+			jssp.output(jssp.echocache); jssp.echocache='';
+			jssp.output(str);
+		}
+		else
+		{
+			if(typeof str === "function") str = jssp.func2str(str);
+			if(typeof str !== "string")   str = ''+str;
+			jssp.echocache += str;
+		}
 	}
 	jssp.exit = function(str)
 	{
@@ -341,6 +261,7 @@ function PHPInit(jssp,req,res,code,codefilename,postobj,fileobj)
 function JSSPCoreInit(req,res,code,codefilename,postobj,fileobj)
 {
 	var jssp = {};
+	jssp.vm            = vm;
 	jssp.BaseDirectory = BaseDirectory;
 	jssp.__filename    = codefilename.slice(0,codefilename.length-3);
 	jssp.__dirname     = path.dirname(codefilename);
@@ -358,11 +279,20 @@ function JSSPCoreInit(req,res,code,codefilename,postobj,fileobj)
 	jssp.runnext = function()
 	{
 		if(!jssp.running) return;
-		if(objectset.size>0) return;
-		if(html.length) { jssp.domainobj.run(function(){ html.shift().call() });return; }
+		if(objectset.size>0){ jssp.output(jssp.echocache); jssp.echocache=''; return; }
+		if(html.length) { jssp.domainobj.run(function(){ html.shift().call() }); return; }
 
 		jssp.internalexit();
 		return;
+	}
+
+	jssp.echocache = '';
+	jssp.output = function(str,isend)
+	{
+		jssp.domainobj.run(function(){ 
+			if(isend) { if(str) { res.end(str) } else { res.end() } }
+			else      { if(str) { res.write(str) } }
+		});
 	}
 
 	jssp.internalexit = function(str)
@@ -373,8 +303,7 @@ function JSSPCoreInit(req,res,code,codefilename,postobj,fileobj)
 		if(maxtimer) clearTimeout(maxtimer);
 		objectset.forEach(function(obj){ obj.jsspclose() });
 
-		jssp.domainobj.run(function()
-		{ if(str) res.end(str); else res.end(); });
+		jssp.output(jssp.echocache); jssp.output(str,true); jssp.echocache='';
 	}
 
 	var domainobj = require('domain').create();
@@ -531,7 +460,7 @@ function VMStart()
 
 
 		$$domainobj = jssp.domaincreate();
-		try{ eval(code) }catch(e)
+		try{ eval(code); }catch(e)
 		{ jssp.internalexit(jssp.errorformat(e)) };
 
 		jssp.runnext();
