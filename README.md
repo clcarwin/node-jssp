@@ -11,7 +11,7 @@ JavaScript Server Page on nodejs. The syntax looks like PHP.
   - echo exit $\_GET $\_POST and other PHP-like function and variables
   - syntax error and runtime error will be caught
   - while(true) and for(;;) can not block JSSP
-  - Support {{name}} and {{<li>{{items[]}}</li>}} style template
+  - Support \{\{name\}\} and \{\{\<li\>\{\{items[]\}\}\</li\>\}\} style template
 
 ## Usage
 
