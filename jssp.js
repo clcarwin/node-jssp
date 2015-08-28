@@ -122,7 +122,7 @@ function jssp2js(str)
 {
 	//*.jssp file to js code
 
-	var spliter = '----3141592652718281828----';
+	var spliter = '----3141592652718281828----'+Math.random()+'----';
 	var re = new RegExp(spliter,'g');
 	str = str.replace(/\<\?/g,spliter+'/*<?*/');
 	str = str.replace(/\?\>/g,'/*?>*/'+spliter);
@@ -137,7 +137,10 @@ function jssp2js(str)
 
 		if('/*<?*/'==ss.substring(0,6))
 		{
-			ss = whileformachine(ss);
+			var r=[ss,0];
+			do{ r = whileformachine(r[0],spliter) }
+			while(r[1]>0)	//nest for
+			ss = r[0].replace(re, '');
 
 			ss = '$$arraypush(function(){\n'
 				+ ss + '\n'
@@ -281,6 +284,7 @@ function JSSPCoreInit(req,res,code,codefilename,postobj,fileobj)
 	jssp.runnext = function()
 	{
 		if(!jssp.running) return;
+		ticktime = undefined;
 		if(objectset.size>0){ jssp.output(jssp.echocache); jssp.echocache=''; return; }
 
 		if(html.length)
@@ -327,6 +331,18 @@ function JSSPCoreInit(req,res,code,codefilename,postobj,fileobj)
 	var TPL = {};
 	jssp.TPL = TPL;
 	jssp.render = function(name,value){ TPL[name] = value; }
+
+	var tickcount = 0;
+	var ticktime  = undefined;
+	jssp.tick = function()
+	{
+		tickcount++;
+		if( (tickcount)&&(0==tickcount%102400) )
+		{
+			if(!ticktime) ticktime=process.hrtime();
+			if(process.hrtime(ticktime)[0]>0) throw new Error('EXCEED TICKTIME');
+		}
+	}
 
 	var maxtimer = undefined;
 	jssp.setmaxtimer = function(timeout)
@@ -461,6 +477,7 @@ function VMStart()
 		var render         = jssp.render;
 
 		var $$arraypush    = jssp.arraypush;
+		var $$tick         = jssp.tick;
 		var $$TPL     = TPL    = jssp.TPL;
 
 		var $_GET     = GET    = jssp.$_GET;

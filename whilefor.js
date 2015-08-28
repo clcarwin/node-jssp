@@ -1,6 +1,6 @@
 module.exports = whileformachine;
 
-function whileformachine(js)
+function whileformachine(js,spliter)
 {
 	var result = '';
 
@@ -8,6 +8,7 @@ function whileformachine(js)
 					//f fo for for1 for1q1 for1q2 for1q1s for1q2s 
 					//q1 q2 q1s q2s
 	var bracecount = 0;
+	var whileforcount   = 0;
 	function put(c)
 	{
 		result += c;
@@ -58,6 +59,8 @@ function whileformachine(js)
 			case 'while':
 				if('('==c)
 				{
+					whileforcount++;
+					result = result.slice(0,-1)+spliter+'(';	//slice(0,-1) = delete last char (
 					result += '$$tick(),';
 					s = 'idle';
 				} else
@@ -74,7 +77,12 @@ function whileformachine(js)
 			break;
 			case 'for':
 				if( (' '==c)||('\t'==c)||('\n'==c)||('\r'==c) ) s='for'; else
-				if('('==c) { s='for1'; bracecount=0; } else
+				if('('==c)
+				{
+					s='for1'; bracecount=0;
+					whileforcount++;
+					result = result.slice(0,-1)+spliter+'(';	//slice(0,-1) = delete last char (
+				} else
 				s = 'idle';
 			break;
 			case 'for1':
@@ -112,5 +120,5 @@ function whileformachine(js)
 	}
 
 	for(var i=0;i<js.length;i++) put(js[i]);
-	return result;
+	return [result,whileforcount];
 }
