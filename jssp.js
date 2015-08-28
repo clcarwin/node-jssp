@@ -285,10 +285,12 @@ function JSSPCoreInit(req,res,code,codefilename,postobj,fileobj)
 
 		if(html.length)
 		{
-			do{ html.shift().call() }
-			while( (0==objectset.size)&&(html.length>0) )
-
-			jssp.domainobj.run(function(){ process.nextTick(jssp.runnext) });
+			jssp.domainobj.run(function()
+			{
+				do{ html.shift().call() }
+				while( (0==objectset.size)&&(html.length>0) )				
+				process.nextTick(jssp.runnext);
+			});
 			return;
 		}
 		else
