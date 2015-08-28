@@ -137,6 +137,8 @@ function jssp2js(str)
 
 		if('/*<?*/'==ss.substring(0,6))
 		{
+			ss = whileformachine(ss);
+
 			ss = '$$arraypush(function(){\n'
 				+ ss + '\n'
 				+'});\n';
@@ -280,10 +282,20 @@ function JSSPCoreInit(req,res,code,codefilename,postobj,fileobj)
 	{
 		if(!jssp.running) return;
 		if(objectset.size>0){ jssp.output(jssp.echocache); jssp.echocache=''; return; }
-		if(html.length) { jssp.domainobj.run(function(){ html.shift().call() }); return; }
 
-		jssp.internalexit();
-		return;
+		if(html.length)
+		{
+			do{ html.shift().call() }
+			while( (0==objectset.size)&&(html.length>0) )
+
+			jssp.domainobj.run(function(){ process.nextTick(jssp.runnext) });
+			return;
+		}
+		else
+		{
+			jssp.internalexit();
+			return;
+		}
 	}
 
 	jssp.echocache = '';
@@ -352,8 +364,7 @@ function JSSPInit(jssp,req,res,code,codefilename,postobj,fileobj)
 	var html = jssp.html;
 	jssp.arraypush = function(cb)
 	{
-		var fn = function(){ cb(); jssp.runnext(); };
-		html.push(fn);
+		html.push(cb);
 	};
 	jssp.func2str = function(cb)
 	{
