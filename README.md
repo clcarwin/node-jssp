@@ -10,7 +10,8 @@ JavaScript Server Page on nodejs. The syntax looks like PHP.
   - nodejs code place between <? ?> in html
   - echo exit $\_GET $\_POST and other PHP-like function and variables
   - syntax error and runtime error will be caught
-  - while(true); and (new Buffer(1000000000000...)) will kill JSSP
+  - while(true) and for(;;) can not block JSSP
+  - Support {{name}} and {{<li>{{items[]}}</li>}} style template
 
 ## Usage
 
