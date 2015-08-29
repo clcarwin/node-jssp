@@ -2,66 +2,103 @@ module.exports = tplmachine;
 
 function tplmachine(html)
 {
-	var l  = 0;	//{ count
-	var ll = 0;	//{{ count
-	var r  = 0;
-	var rr = 0;
-
 	var str = '';
 	var tpllist = [];
 	var arrlist = [];
 	var result  = '';
 
+	var s = 'idle';//idle slash
+		//lb lbb lbbb lbbbb rbbbb rbbb rbb rb
+	var stack = [];
+	var lbbbbflag =false;
+
 	function put(c)
 	{
-		if('{'==c) { if(ll<2) l++; } else
-		if('}'==c) { if(ll>0) r++; }
-		else
+		switch(s)
 		{
-			if(l) {l=0;str+='{';}
-			if(r) {r=0;str+='}';}
-			str += c;
-		}
-
-		if(2==l)
-		{
-			l=0;ll++;
-			if(1==ll){ tplpushtxt(str); str=''; tplend(); }		//0->1
-			if(2==ll){ tplpushtxt(str); str=''; }				//1->2
-		}
-		if(2==r)
-		{
-			r=0;ll--;
-			if(0==ll)
-			{
-				if(tpllist.length){ tplpushtxt(str) }	//2->1->0
-				else{ tplpushname(str) }				//1->0
-				str='';
-				tplend();
-			}
-			if(1==ll){ tplpushname(str); str=''; }		//2->1
+			case 'idle':
+				if('\\'==c) { stack.push(s);s='slash';return; } else
+				if('{'==c) { s='lb';return; } else
+				{ s='idle'; str+=c; }
+			break;
+			case 'slash':
+				s=stack.pop(s);
+				str+='\\'+c;
+			break;
+			case 'lb':
+				if('{'==c) { tplpushtxt(str);str='';tplend();s='lbb'; } else
+				if('\\'==c) { stack.push('idle');s='slash';return; } else
+				{ s='idle'; str+='{'+c; }
+			break;
+			case 'lbb':
+				if('{'==c) s='lbbb'; else
+				if('}'==c) s='rbb'; else
+				if('\\'==c) { stack.push(s);s='slash';return; } else
+				str += c;
+			break;
+			case 'lbbb':
+				if('{'==c) { tplpushtxt(str);str='';s='lbbbb';lbbbbflag=true; } else
+				if('\\'==c) { stack.push('lbb');s='slash';return; } else
+				{ s='lbb'; str+='{'+c; }
+			break;
+			case 'lbbbb':
+				if('}'==c) s='rbbbb'; else
+				if('\\'==c) { stack.push(s);s='slash';return; } else
+				str += c;
+			break;
+			case 'rbb':
+				if('}'==c)
+				{
+					if(lbbbbflag) tplpushtxt(str); else tplpushname(str);
+					lbbbbflag = false;
+					str = '';
+					tplend();
+					s = 'rb';
+					s = 'idle';
+				} else
+				if('\\'==c)
+				{
+					if(lbbbbflag) stack.push('rbbb'); else stack.push('lbb');
+					s='slash';
+				} else
+				{
+					if(lbbbbflag) s='rbbb'; else s='lbb';
+					str += '}'+c;
+				}
+			break;
+			case 'rbbb':
+				if('}'==c) s='rbb'; else
+				if('{'==c) s='lbbb'; else
+				str += c;
+			break;
+			case 'rbbbb':
+				if('}'==c) { tplpushname(str);str='';s='rbbb';} else
+				if('\\'==c) { stack.push('lbbbb');s='slash';return; } else
+				{ s='lbbbb'; str+='}'+c; }
+			break;
 		}
 	}
-
 
 	function tplpushtxt(str)
 	{
-		if(str.length>0)
+		if(!str) return;
+		if( (str.indexOf('\\')<0)&&(str.indexOf("'")<0)&&(str.indexOf('\n')<0) )
+		{
+			str = "echo('"+str+"');";
+		}
+		else
 		{
 			str =  '//'+str.replace(/\n/g,'\n//');
 			str = 'echo(function(){\n'+str+'\n});\n';
-			tpllist.push(str);
 		}
+		tpllist.push(str);
 	}
+
 	function tplpushname(str)
 	{
-		if( (str.indexOf('[')>=0)&&(str.indexOf(']')>=0) )
-		{
-			var arr = str.replace('[]','');
-			arr = arr.replace('[i]','');
-			arrlist.push('$$TPL.'+arr);
-			str = arr + '[i]';
-		}
+		str = str.replace('[]','[i]');
+		var index = str.indexOf('[i]');
+		if(index>=0) arrlist.push('$$TPL.'+str.slice(0,index));
 
 		str = 'echo($$TPL.'+str+');\n';
 		tpllist.push(str);
@@ -91,3 +128,12 @@ function tplmachine(html)
 	result = '$$arraypush(function(){\n'+result+'});\n';
 	return result;
 }
+
+
+
+
+
+
+
+
+
