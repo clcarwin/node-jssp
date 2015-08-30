@@ -17,33 +17,33 @@ function tplmachine(html)
 		switch(s)
 		{
 			case 'idle':
-				if('\\'==c) { stack.push(s);s='slash';return; } else
+				if('\\'==c) { stack.push(s);str+=c;s='slash';return; } else
 				if('{'==c) { s='lb';return; } else
 				{ s='idle'; str+=c; }
 			break;
 			case 'slash':
 				s=stack.pop(s);
-				str+='\\'+c;
+				str+=c;
 			break;
 			case 'lb':
 				if('{'==c) { tplpushtxt(str);str='';tplend();s='lbb'; } else
-				if('\\'==c) { stack.push('idle');s='slash';return; } else
+				if('\\'==c) { stack.push('idle');str+=c;s='slash';return; } else
 				{ s='idle'; str+='{'+c; }
 			break;
 			case 'lbb':
 				if('{'==c) s='lbbb'; else
 				if('}'==c) s='rbb'; else
-				if('\\'==c) { stack.push(s);s='slash';return; } else
+				if('\\'==c) { stack.push(s);str+=c;s='slash';return; } else
 				str += c;
 			break;
 			case 'lbbb':
 				if('{'==c) { tplpushtxt(str);str='';s='lbbbb';lbbbbflag=true; } else
-				if('\\'==c) { stack.push('lbb');s='slash';return; } else
+				if('\\'==c) { stack.push('lbb');str+=c;s='slash';return; } else
 				{ s='lbb'; str+='{'+c; }
 			break;
 			case 'lbbbb':
 				if('}'==c) s='rbbbb'; else
-				if('\\'==c) { stack.push(s);s='slash';return; } else
+				if('\\'==c) { stack.push(s);str+=c;s='slash';return; } else
 				str += c;
 			break;
 			case 'rbb':
@@ -59,7 +59,7 @@ function tplmachine(html)
 				if('\\'==c)
 				{
 					if(lbbbbflag) stack.push('rbbb'); else stack.push('lbb');
-					s='slash';
+					str+=c;s='slash';
 				} else
 				{
 					if(lbbbbflag) s='rbbb'; else s='lbb';
@@ -73,7 +73,7 @@ function tplmachine(html)
 			break;
 			case 'rbbbb':
 				if('}'==c) { tplpushname(str);str='';s='rbbb';} else
-				if('\\'==c) { stack.push('lbbbb');s='slash';return; } else
+				if('\\'==c) { stack.push('lbbbb');str+=c;s='slash';return; } else
 				{ s='lbbbb'; str+='}'+c; }
 			break;
 		}
