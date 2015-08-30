@@ -490,7 +490,11 @@ function VMStart()
 
 
 		$$domainobj = jssp.domaincreate();
-		try{ eval(code); }catch(e)
+		try{
+			new jssp.vm.Script(code,{filename:__filename+'.js'});	//Check Syntax Error 
+			eval(code);
+		}
+		catch(e)
 		{ jssp.internalexit(jssp.errorformat(e)) };
 
 		jssp.runnext();
