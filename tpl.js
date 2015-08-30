@@ -89,7 +89,7 @@ function tplmachine(html)
 		else
 		{
 			str =  '//'+str.replace(/\n/g,'\n//');
-			str = 'echo(function(){\n'+str+'\n});\n';
+			str = 'echo(function(){\n'+str+'\n});';
 		}
 		tpllist.push(str);
 	}
@@ -101,7 +101,7 @@ function tplmachine(html)
 		var index = str.indexOf('[$$i]');
 		if(index>=0) arrlist.push('$$TPL.'+str.slice(0,index));
 
-		str = 'echo($$TPL.'+str+');\n';
+		str = 'echo($$TPL.'+str+');';
 		tpllist.push(str);
 	}
 	function tplend()
@@ -114,7 +114,7 @@ function tplmachine(html)
 			else arrlist.push('1');
 			js += 'for(var $$i=0;$$i<Math.min('+arrlist.join('.length,')+');$$i++)\n{\n';
 			js += tpllist.join('');
-			js += '\n}\n';
+			js += '\n}';
 		}
 		else { js = tpllist[0]; }
 		tpllist.splice(0, tpllist.length);
@@ -126,7 +126,6 @@ function tplmachine(html)
 	for(var i=0;i<html.length;i++) put(html[i]);
 	tplpushtxt(str); tplend();
 
-	result = '$$arraypush(function(){\n'+result+'});\n';
 	return result;
 }
 

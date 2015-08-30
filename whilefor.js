@@ -1,29 +1,48 @@
 module.exports = whileformachine;
 
-function whileformachine(js,spliter)
+function whileformachine(js)
 {
 	var result = '';
 
 	var s = 'space';//idle space w wh whi whil while 
-					//f fo for for1 for1q1 for1q2 for1q1s for1q2s 
+					//f fo for for1 for1q1 for1q2 for1q1s for1q2s for1end
 					//q1 q2 q1s q2s
-	var bracecount = 0;
-	var whileforcount   = 0;
+	var forstack = [];
 	function put(c)
 	{
 		result += c;
 		switch(s)
 		{
 			case 'idle':
-				if( (' '==c)||('\t'==c)||('\n'==c)||('\r'==c)||(';'==c)||('}'==c) ) s='space'; else
+				if( (' '==c)||('\t'==c)||('\n'==c)||('\r'==c)||(';'==c) ) s='space'; else
 				if("'"==c) s='q1'; else
 				if('"'==c) s='q2'; else
+				if('{'==c)
+				{
+					forstack.push('space');
+					s='space';
+				} else
+				if('}'==c)
+				{
+					if(forstack.length) s=forstack.pop();
+					else s='space';
+				} else
 				s = 'idle';
 			break;
 			case 'space':
 				if('w'==c) s='w';  else
 				if('f'==c) s='f';  else
-				if( (' '==c)||('\t'==c)||('\n'==c)||('\r'==c)||(';'==c)||('}'==c) ) s='space'; else
+				if( (' '==c)||('\t'==c)||('\n'==c)||('\r'==c)||(';'==c) ) s='space'; else
+				if('{'==c)
+				{
+					forstack.push('space');
+					s='space';
+				} else
+				if('}'==c)
+				{
+					if(forstack.length) s=forstack.pop();
+					else s='space';
+				} else
 				s = 'idle';
 			break;
 			case 'q1':
@@ -59,8 +78,6 @@ function whileformachine(js,spliter)
 			case 'while':
 				if('('==c)
 				{
-					whileforcount++;
-					result = result.slice(0,-1)+spliter+'(';	//slice(0,-1) = delete last char (
 					result += '$$tick(),';
 					s = 'idle';
 				} else
@@ -77,24 +94,30 @@ function whileformachine(js,spliter)
 			break;
 			case 'for':
 				if( (' '==c)||('\t'==c)||('\n'==c)||('\r'==c) ) s='for'; else
-				if('('==c)
-				{
-					s='for1'; bracecount=0;
-					whileforcount++;
-					result = result.slice(0,-1)+spliter+'(';	//slice(0,-1) = delete last char (
-				} else
+				if('('==c) s='for1'; else
 				s = 'idle';
 			break;
 			case 'for1':
 				if("'"==c) s='for1q1'; else
 				if('"'==c) s='for1q2'; else
-				if('{'==c) bracecount++; else
-				if('}'==c) bracecount--; else
-				if( (';'==c)&&(bracecount==0) )
+				if('{'==c)
+				{
+					forstack.push('for1');
+					s='space';
+				} else
+				if(';'==c)
 				{
 					result += '$$tick(),';
-					s = 'idle';
-				}
+					s = 'for1end';
+				} else
+				{ /* pass and do nothing */ }
+			break;
+			case 'for1end':
+				if(';'==c)
+				{
+					result = result.slice(0,-1)+'1;';	//for(;;) -> for(;$$tick(),1;)
+				} else
+				s = 'idle';
 			break;
 			case 'for1q1':
 				if('\\'==c) s='for1q1s'; else
@@ -120,5 +143,5 @@ function whileformachine(js,spliter)
 	}
 
 	for(var i=0;i<js.length;i++) put(js[i]);
-	return [result,whileforcount];
+	return result;
 }

@@ -1,5 +1,6 @@
 <? 
-for(var i=(function(){ for(var i=0;i<5000000000;i++){}  ;return 0})()
+for(var i=(function(){ for(var i=0;i<5000000000;i++)
+		{for(;;){}}  ;return 0})()
 	;i<13400000
 	;i++){}
 while((function(){  while(1){}; return false;})()){}

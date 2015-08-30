@@ -137,17 +137,16 @@ function jssp2js(str)
 
 		if('/*<?*/'==ss.substring(0,6))
 		{
-			var r=[ss,0];
-			do{ r = whileformachine(r[0],spliter) }
-			while(r[1]>0)	//nest for
-			ss = r[0].replace(re, '');
-
-			ss = '$$arraypush(function(){\n'
-				+ ss + '\n'
-				+'});\n';
+			ss = whileformachine(ss);
+			ss = '$$arraypush(function(){\n' + ss + '\n});\n';
 			list[i] = ss;
 		}
-		else{ list[i] = tplmachine(ss); }
+		else
+		{
+			ss = tplmachine(ss);
+			ss = '$$arraypush(function(){\n' + ss + '\n});\n';
+			list[i] = ss;
+		}
 	}
 
 	return list.join('\n');;
