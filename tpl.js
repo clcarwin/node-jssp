@@ -99,9 +99,9 @@ function tplmachine(html)
 		str = str.replace('[]','[$$$$i]');	//$$ is $ in regex
 		str = str.replace('[i]','[$$$$i]');	//$$ is $ in regex
 		var index = str.indexOf('[$$i]');
-		if(index>=0) arrlist.push('$$TPL.'+str.slice(0,index));
+		if(index>=0) arrlist.push('$$T.'+str.slice(0,index));
 
-		str = 'echo($$TPL.'+str+');';
+		str = 'echo($$T.'+str+');';
 		tpllist.push(str);
 	}
 	function tplend()
