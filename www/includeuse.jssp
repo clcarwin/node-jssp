@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+0
 <?
 	set_time_limit(10*1000);
-	include('includeimp.jssp',function(obj)
-	{
-		echo('1+2='+obj.add(1,2));
-	});
+	var obj = include('includeimp.jssp');
+	echo('1+2='+obj.add(1,2)+'\n');
 ?>
-ddd
+1
+<? echo(2) ?>
+3

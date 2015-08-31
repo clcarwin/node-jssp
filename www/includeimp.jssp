@@ -1,5 +1,6 @@
+    0.1
 <?
-	echo('__run in includeimp__<br>');
+	echo('    0.2 __run in includeimp__\n');
 
 	module.exports = new Test();
 	function Test()
@@ -13,5 +14,7 @@
 
 	setTimeout(function()
 	{
-		echo('wait in include<br>');
+		echo('    0.3 wait in include\n');
 	},1000);
+?>
+    0.4

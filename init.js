@@ -2,6 +2,10 @@ var url = require('url');
 var path = require('path');
 var util = require('util');
 var vm = require('vm');
+var fs = require('fs');
+
+var jsbase = __dirname + '/';
+var compilemachine = require(jsbase + 'compile.js');
 
 module.exports = JSSPCoreInit;
 
@@ -37,7 +41,7 @@ function getenvobj(req)
 	return env;
 }
 
-function PHPInit(jssp,req,res,code,codefilename,postobj,fileobj)
+function PHPInit(jssp,req,res,code,filename,postobj,fileobj)
 {
 	var urlobj  = url.parse(req.url,true);
 	jssp.$_GET  = urlobj.query;
@@ -66,7 +70,60 @@ function PHPInit(jssp,req,res,code,codefilename,postobj,fileobj)
 	}
 	jssp.include = function(filename)
 	{
+		filename = path.normalize('/'+filename); //delete .. in filename
+		filename = path.resolve(jssp.BaseDirectory,'./'+filename);
 
+		var code;
+		var stats = fs.statSync(filename);
+		var time = jssp.CODEMTIME[filename];
+		if(time!==stats.mtime.getTime())
+		{
+			try{ code = fs.readFileSync(filename,{'encoding':'utf8'}) }
+			catch(e){ cb(e);return; }
+			code = compilemachine(code);
+			jssp.CODECACHE[filename] = code;
+			jssp.CODEMTIME[filename] = stats.mtime.getTime();
+		}
+		else { code = jssp.CODECACHE[filename]; }
+		
+
+		var oldfilename;
+		var oldcode;
+		function pushname()
+		{
+			oldfilename = jssp.__filename;
+			jssp.__filename = filename;
+			jssp.__dirname  = path.dirname(filename);
+			oldcode     = jssp.__code;
+			jssp.__code     = code;
+			jssp.__codename = filename+'.js';
+		}
+		function popname()
+		{
+			jssp.__filename = oldfilename;
+			jssp.__dirname  = path.dirname(oldfilename);
+			jssp.__code     = code;
+			jssp.__codename = oldfilename+'.js';
+		}
+		function pushhtml()
+		{
+			jssp.htmlstack.push(jssp.html); jssp.html=[];
+			pushname();
+		}
+		function pophtml()
+		{
+			jssp.html = jssp.htmlstack.pop();
+			popname();
+		}
+
+		pushhtml();
+		jssp.EvalCode(code,jssp);
+		jssp.arraypush(pophtml);
+
+		jssp.runnext();
+		popname();
+		jssp.arraypush(pushname);
+		return jssp.module.exports;
 	}
 	jssp.set_time_limit = function(timeout)
 	{
@@ -82,12 +139,11 @@ function PHPInit(jssp,req,res,code,codefilename,postobj,fileobj)
 	}
 }
 
-function JSSPInit(jssp,req,res,code,codefilename,postobj,fileobj)
+function JSSPInit(jssp,req,res,code,filename,postobj,fileobj)
 {
-	var html = jssp.html;
 	jssp.arraypush = function(cb)
 	{
-		html.push(cb);
+		jssp.html.push(cb);
 	};
 	jssp.func2str = function(cb)
 	{
@@ -155,17 +211,24 @@ function JSSPInit(jssp,req,res,code,codefilename,postobj,fileobj)
 
 }
 
-function JSSPCoreInit(option,req,res,code,codefilename,postobj,fileobj)
+function JSSPCoreInit(option,req,res,code,filename,postobj,fileobj)
 {
 	var jssp = {};
 	jssp.vm            = vm;
+	jssp.EvalCode      = undefined;
 	jssp.BaseDirectory = option.BaseDirectory;
-	jssp.__filename    = codefilename.slice(0,codefilename.length-3);
-	jssp.__dirname     = path.dirname(codefilename);
 	jssp.GLOBAL_ENV    = option.GLOBAL_ENV;
+	jssp.CODECACHE     = option.CODECACHE;
+	jssp.CODEMTIME     = option.CODEMTIME;
 
-	var html = []
-	jssp.html = html;
+	jssp.html = [];
+	jssp.htmlstack = [];
+
+	jssp.__filename    = filename;
+	jssp.__dirname     = path.dirname(filename);
+	jssp.__code        = code;
+	jssp.__codename    = filename+'.js';
+	jssp.module = {"exports":{}};
 
 	var objectset  = new Set();
 	jssp.objectset = objectset;
@@ -180,20 +243,18 @@ function JSSPCoreInit(option,req,res,code,codefilename,postobj,fileobj)
 		ticktime = undefined;
 		if(objectset.size>0){ jssp.output(jssp.echocache); jssp.echocache=''; return; }
 
-		if(html.length)
+		if(jssp.html.length)
 		{
 			jssp.domainobj.run(function()
 			{
-				do{ html.shift().call() }
-				while( (0==objectset.size)&&(html.length>0) )				
+				do{ jssp.html.shift().call() }
+				while( (0==objectset.size)&&(jssp.html.length>0) )
 				process.nextTick(jssp.runnext);
 			});
-			return;
 		}
 		else
 		{
 			jssp.internalexit();
-			return;
 		}
 	}
 
@@ -244,8 +305,8 @@ function JSSPCoreInit(option,req,res,code,codefilename,postobj,fileobj)
 		maxtimer = setTimeout(function()
 		{
 			maxtimer = undefined;
-			var str = 'EXCEED MAXEXECUTETIME: ' + codefilename + '\n';
-			str += util.inspect(objectset.entries().next().value[0],{depth:0});
+			var str = 'EXCEED MAXEXECUTETIME: ' + jssp.__codename + '\n';
+			objectset.forEach(function(obj){ str+=util.inspect(obj,{depth:0}) });
 			jssp.internalexit(jssp.errorformat(str));
 		},timeout);
 	}
@@ -253,7 +314,7 @@ function JSSPCoreInit(option,req,res,code,codefilename,postobj,fileobj)
 
 	jssp.errorformat = function(e)
 	{
-		return codeerrorformat(e,code,codefilename);
+		return codeerrorformat(e,jssp.__code,jssp.__codename);
 	}
 	jssp.domaincreate = function()
 	{
@@ -263,28 +324,28 @@ function JSSPCoreInit(option,req,res,code,codefilename,postobj,fileobj)
 	}
 	jssp.init = function()
 	{
-		PHPInit(jssp,req,res,postobj,fileobj,code,codefilename);
-		JSSPInit(jssp,req,res,postobj,fileobj,code,codefilename);
+		PHPInit(jssp,req,res,postobj,fileobj,code,filename);
+		JSSPInit(jssp,req,res,postobj,fileobj,code,filename);
 	}
 	jssp.init();
 			
 	return jssp;	
 }
 
-function codeerrorformat(e,code,codefilename)
+function codeerrorformat(e,code,codename)
 {
 	var str;
 	if(e.stack)
 	{ 
 		str = e.stack;
-		str = 'ERROR IN FILE: ' + codefilename + '\n\n' + str;
+		str = 'ERROR IN FILE: ' + codename + '\n\n' + str;
 	}
 	else str = e.toString();
 
 	var re = new RegExp('evalmachine.<anonymous>','g');
 	str = str.replace(re,'evalmachine.anonymous');
 	var re = new RegExp('<anonymous>','g');
-	str = str.replace(re,codefilename);
+	str = str.replace(re,codename);
 
 	//format code
 	var c = code;
