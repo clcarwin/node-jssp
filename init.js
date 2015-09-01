@@ -131,6 +131,56 @@ function PHPInit(jssp,req,res,code,filename,postobj,fileobj)
 			if(responsecode) res.statusCode = responsecode;
 		});
 	}
+
+	var ssesid;
+	jssp.internal_session_newid = function()
+	{
+		var obj = {};
+		obj.sessobj = {};
+		obj.ssesid  = process.hrtime().join('-')+'-'+Math.random()*1000000000000000000;
+		obj.time    = process.hrtime();
+		obj.id      = setInterval(function()
+		{
+			if(process.hrtime(obj.time)[0]>24*60) jssp.session_destroy();
+		},5*60*1000);
+
+		res.setHeader('Set-Cookie','JSSPSESSID='+obj.ssesid);
+
+		jssp.GLOBAL_SESSIONS[obj.ssesid] = obj;
+		return obj.ssesid;
+	}
+	jssp.session_start = function()
+	{
+		if(!ssesid) ssesid = splitsessionid(req.headers['cookie']);
+		if(!ssesid) ssesid = jssp.internal_session_newid();
+
+		obj = jssp.GLOBAL_SESSIONS[ssesid];
+		if(!obj) ssesid  = jssp.internal_session_newid();	//ssesid invalid
+		if(!obj) obj = jssp.GLOBAL_SESSIONS[ssesid];
+
+		obj.time = process.hrtime();
+		return obj.sessobj;
+	}
+	jssp.session_id = function()
+	{
+		return ssesid;
+	}
+	jssp.session_destroy = function()
+	{
+		var obj = jssp.GLOBAL_SESSIONS[ssesid];
+		if(!obj) return;
+		clearInterval(obj.id);
+		jssp.session_unset();
+		delete jssp.GLOBAL_SESSIONS[ssesid];
+		ssesid = undefined;
+	}
+	jssp.session_unset = function()
+	{
+		var obj = jssp.GLOBAL_SESSIONS[ssesid];
+		if(!obj) return;
+		var sessobj = obj.sessobj;
+		for(var key in sessobj) delete sessobj[key];
+	}
 }
 
 function JSSPInit(jssp,req,res,code,filename,postobj,fileobj)
@@ -208,12 +258,13 @@ function JSSPInit(jssp,req,res,code,filename,postobj,fileobj)
 function JSSPCoreInit(option,req,res,code,filename,postobj,fileobj)
 {
 	var jssp = {};
-	jssp.vm            = vm;
-	jssp.EvalCode      = undefined;
-	jssp.BaseDirectory = option.BaseDirectory;
-	jssp.GLOBAL_ENV    = option.GLOBAL_ENV;
-	jssp.CODECACHE     = option.CODECACHE;
-	jssp.CODEMTIME     = option.CODEMTIME;
+	jssp.vm              = vm;
+	jssp.EvalCode        = undefined;
+	jssp.BaseDirectory   = option.BaseDirectory;
+	jssp.GLOBAL_ENV      = option.GLOBAL_ENV;
+	jssp.GLOBAL_SESSIONS = option.GLOBAL_SESSIONS;
+	jssp.CODECACHE       = option.CODECACHE;
+	jssp.CODEMTIME       = option.CODEMTIME;
 
 	jssp.html = [];
 	jssp.htmlstack = [];
@@ -358,4 +409,18 @@ function codeerrorformat(e,code,codename)
 	str = str.replace(/\&/g,'&amp');
 	str = str.replace(/\</g,'&lt;');
 	return '<br><pre>\n'+str+'</pre>';
+}
+
+function splitsessionid(cookie)
+{
+	cookie = cookie + ';';
+	var id  = undefined;
+	var index  = cookie.indexOf('JSSPSESSID=');
+	if(index>=0) 
+	{
+		id = cookie.slice(index+11);
+		index  = id.indexOf(';');
+		id = id.slice(0,index);
+	}
+	return id;
 }

@@ -19,7 +19,7 @@ function includemachine(js)
 				if('"'==c) { stack.push(s);s='q2'; } else
 				if('{'==c) { stack.push('space');s='space'; } else
 				if('}'==c) { s=stack.pop(); } else
-				if('('==c) { stack.push(s);s='idle'; } else
+				if('('==c) { stack.push(s);s='space'; } else
 				if(')'==c) { s=stack.pop(); } else
 				{ s='idle'; }
 			break;

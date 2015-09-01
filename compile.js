@@ -2,6 +2,7 @@ var jsbase = __dirname + '/';
 var tplmachine = require(jsbase + 'tpl.js');
 var whileformachine = require(jsbase + 'whilefor.js');
 var includemachine  = require(jsbase + 'include.js');
+var sessionmachine  = require(jsbase + 'session.js');
 
 //*.jssp file to js code
 module.exports = complemachine;
@@ -77,5 +78,9 @@ function complemachine(html)
 	for(var i=0;i<html.length;i++) put(html[i]);
 	if(s=='l2') pushjs(str); else pushhtml(str);
 
-	return result.join('');
+	var js = result.join('');
+	if(js.indexOf('session_start')>=0)
+	if(sessionmachine(js)) js = '$_SESSION=SESSION=session_start();\n\n' + js;
+
+	return js;
 }

@@ -168,6 +168,7 @@ function VMStart()
 		var $$tick         = jssp.tick;
 		var $$T      = jssp.T;        var T = jssp.T;
 
+		var $_SESSION=undefined;      var SESSION=undefined;
 		var $_GET    = jssp.$_GET;    var GET    = jssp.$_GET;
 		var $_POST   = jssp.$_POST;	  var POST   = jssp.$_POST;	
 		var $_FILE   = jssp.$_FILE;   var FILE   = jssp.$_FILE;
@@ -176,6 +177,10 @@ function VMStart()
 		var set_time_limit     = jssp.set_time_limit;
 		var header             = jssp.header;
 		var include            = jssp.include;
+		var session_start      = jssp.session_start;
+		var session_id         = jssp.session_id;
+		var session_destroy    = jssp.session_destroy;
+		var session_unset      = jssp.session_unset;
 
 
 		$$domainobj = jssp.domaincreate();
