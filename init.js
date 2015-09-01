@@ -41,7 +41,7 @@ function getenvobj(req)
 	return env;
 }
 
-function PHPInit(jssp,req,res,code,filename,postobj,fileobj)
+function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 {
 	var urlobj  = url.parse(req.url,true);
 	jssp.$_GET  = urlobj.query;
@@ -183,7 +183,7 @@ function PHPInit(jssp,req,res,code,filename,postobj,fileobj)
 	}
 }
 
-function JSSPInit(jssp,req,res,code,filename,postobj,fileobj)
+function JSSPInit(jssp,req,res,postobj,fileobj,code,filename)
 {
 	jssp.arraypush = function(cb)
 	{
@@ -255,7 +255,7 @@ function JSSPInit(jssp,req,res,code,filename,postobj,fileobj)
 
 }
 
-function JSSPCoreInit(option,req,res,code,filename,postobj,fileobj)
+function JSSPCoreInit(option,req,res,postobj,fileobj,code,filename)
 {
 	var jssp = {};
 	jssp.vm              = vm;

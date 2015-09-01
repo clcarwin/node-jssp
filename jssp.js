@@ -1,12 +1,3 @@
-/*
-	Global Variable & Function:
-	__filename __dirname GET POST FILE SERVER ENV TPL
-	echo exit include set_time_limit header render
-
-	Attention:
-	1. while(true) will freeze whole JSSP
-*/
-
 var fs = require('fs');
 var exec = require('child_process').exec;
 var url = require('url');
@@ -81,6 +72,28 @@ function JSSPCore()
 		filename = path.normalize('/'+filename); //delete .. in filename
 		filename = path.resolve(BaseDirectory,'./'+filename);
 
+		if('POST'==req.method)
+		{
+			var chunklist = [];
+			var size = 0;
+			req.on('data',function(chunk)
+			{
+				chunklist.push(chunk);
+				size += chunk.length;
+				if(size>MaxPostSize)
+				{ chunklist=[];return res.end('EXCEED MAXPOSTSIZE') }
+			});
+			req.on('error',function(){});
+			req.on('end',function()
+			{
+				var postobj={}, fileobj={};
+				try{ postparse(req,Buffer.concat(chunklist),postobj,fileobj);
+				}catch(e){ return res.end('POST DATA PARSE ERROR') }
+
+				ServerFile(filename,req,res,postobj,fileobj);
+			});
+		}
+		else
 		{
 			ServerFile(filename,req,res,{},{});
 		}
@@ -115,7 +128,7 @@ function JSSPCore()
 					CODEMTIME[filename] = stats.mtime.getTime();
 				}
 				else { code = CODECACHE[filename]; }
-				process.emit('newpage',option,req,res,code,filename,postobj,fileobj);
+				process.emit('newpage',option,req,res,postobj,fileobj,code,filename);
 			}
 		}
 	}
@@ -130,6 +143,69 @@ function JSSPCore()
 		}
 
 		return new vmObject();
+	}
+}
+
+function postparse(req,postbuffer,postobj,fileobj)
+{
+	var contenttype = req.headers['content-type'];
+
+	if('application/x-www-form-urlencoded'==contenttype)
+	{
+		var str = postbuffer.toString();
+		var obj = querystring.parse(str);
+		for(var key in obj) postobj[key] = obj[key];
+	}
+	else
+	if('multipart/form-data'==contenttype.slice(0,19))
+	{
+		var index = contenttype.indexOf('boundary=');
+		var boundary = '--'+contenttype.slice(index+9);
+
+		boundary = (new Buffer(boundary)).toString('hex');
+		postbuffer = postbuffer.toString('hex');
+
+		var list = [];
+		list = postbuffer.split(boundary);
+		list.shift();//delete first
+		list.pop();//delete last
+
+		for(var i=0;i<list.length;i++)
+		{
+			var sublist = list[i];
+			sublist = sublist.slice(4,sublist.length-4);//delete 0d0a at begin and end
+
+			var index = sublist.indexOf('0d0a0d0a');
+			var name = sublist.slice(0,index);
+			name = (new Buffer(name,'hex')).toString();
+			
+			sublist = sublist.slice(index+8);
+			var data = sublist;                
+			data =  new Buffer(data,'hex');
+
+			var type = '';
+			index = name.indexOf('\r\n');
+			if(index>=0)
+			{
+				type = name.slice(index+2);
+				name = name.slice(0,index);
+			}
+
+			var index = name.indexOf('filename=');
+			if(index>=0)
+			{
+				var filename = name.slice(index+9);
+				if('"'==filename[0]) filename = filename.slice(1,filename.length-1);
+				fileobj[filename] = data;
+			}
+			else
+			{
+				index = name.indexOf('name=');
+				var valuename = name.slice(index+5);
+				if('"'==valuename[0]) valuename = valuename.slice(1,valuename.length-1);
+				postobj[valuename] = data.toString();
+			}
+		}
 	}
 }
 
@@ -202,9 +278,9 @@ function VMStart()
 	for(var key in this) delete this[key];
 	Object.freeze(this);
 
-	process.on('newpage',function(option,req,res,code,filename,postobj,fileobj)
+	process.on('newpage',function(option,req,res,postobj,fileobj,code,filename)
 	{
-		var jssp = JSSPCoreInit(option,req,res,code,filename,postobj,fileobj);
+		var jssp = JSSPCoreInit(option,req,res,postobj,fileobj,code,filename);
 		jssp.EvalCode = EvalCode;
 		EvalCode(code,jssp);
 	});
