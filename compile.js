@@ -1,6 +1,7 @@
 var jsbase = __dirname + '/';
 var tplmachine = require(jsbase + 'tpl.js');
 var whileformachine = require(jsbase + 'whilefor.js');
+var includemachine  = require(jsbase + 'include.js');
 
 //*.jssp file to js code
 module.exports = complemachine;
@@ -68,11 +69,13 @@ function complemachine(html)
 	{
 		if(!str) return;
 		str = whileformachine(str);
+		if(str.indexOf('include')>=0) str = includemachine(str);
+
 		result.push('$$arraypush(function(){\n' + str + '\n});\n');
 	}
 
 	for(var i=0;i<html.length;i++) put(html[i]);
-	if(s=='idle') pushhtml(str); else pushjs(str);
+	if(s=='l2') pushjs(str); else pushhtml(str);
 
 	return result.join('');
 }

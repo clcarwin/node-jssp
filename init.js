@@ -68,7 +68,7 @@ function PHPInit(jssp,req,res,code,filename,postobj,fileobj)
 	{
 		jssp.internalexit(str);
 	}
-	jssp.include = function(filename)
+	jssp.include = function(filename,fn)
 	{
 		filename = path.normalize('/'+filename); //delete .. in filename
 		filename = path.resolve(jssp.BaseDirectory,'./'+filename);
@@ -86,11 +86,12 @@ function PHPInit(jssp,req,res,code,filename,postobj,fileobj)
 		}
 		else { code = jssp.CODECACHE[filename]; }
 		
-
 		var oldfilename;
 		var oldcode;
-		function pushname()
+		function push()
 		{
+			jssp.htmlstack.push(jssp.html); jssp.html=[];
+
 			oldfilename = jssp.__filename;
 			jssp.__filename = filename;
 			jssp.__dirname  = path.dirname(filename);
@@ -98,31 +99,24 @@ function PHPInit(jssp,req,res,code,filename,postobj,fileobj)
 			jssp.__code     = code;
 			jssp.__codename = filename+'.js';
 		}
-		function popname()
+		function pop()
 		{
+			jssp.html = jssp.htmlstack.pop();
+
 			jssp.__filename = oldfilename;
 			jssp.__dirname  = path.dirname(oldfilename);
 			jssp.__code     = code;
 			jssp.__codename = oldfilename+'.js';
-		}
-		function pushhtml()
-		{
-			jssp.htmlstack.push(jssp.html); jssp.html=[];
-			pushname();
-		}
-		function pophtml()
-		{
-			jssp.html = jssp.htmlstack.pop();
-			popname();
+
+			fn();
+			jssp.runnext();
 		}
 
-		pushhtml();
+		push();
 		jssp.EvalCode(code,jssp);
-		jssp.arraypush(pophtml);
+		jssp.arraypush(pop);
 
 		jssp.runnext();
-		popname();
-		jssp.arraypush(pushname);
 		return jssp.module.exports;
 	}
 	jssp.set_time_limit = function(timeout)
