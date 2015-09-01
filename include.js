@@ -26,8 +26,12 @@ function includemachine(js)
 			case 'space':
 				if('i'==c) s='i';  else
 				if( (' '==c)||('\t'==c)||('\n'==c)||('\r'==c)||(';'==c) ) s='space'; else
-				if('{'==c) { stack.push(s);s='space'; } else
+				if("'"==c) { stack.push(s);s='q1'; } else
+				if('"'==c) { stack.push(s);s='q2'; } else
+				if('{'==c) { stack.push('space');s='space'; } else
 				if('}'==c) { s=stack.pop(); } else
+				if('('==c) { stack.push(s);s='space'; } else
+				if(')'==c) { s=stack.pop(); } else
 				{ s='idle'; }
 			break;
 			case 'q1':
@@ -83,6 +87,7 @@ function includemachine(js)
 				{ /* pass and do nothing */ }
 			break;
 		}
+		//console.log(c,s);
 	}
 
 	for(var i=0;i<js.length;i++) put(js[i]);
