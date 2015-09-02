@@ -27,8 +27,12 @@ function whileformachine(js)
 				if('w'==c) s='w';  else
 				if('f'==c) s='f';  else
 				if( (' '==c)||('\t'==c)||('\n'==c)||('\r'==c)||(';'==c) ) s='space'; else
-				if('{'==c) { stack.push(s);s='space'; } else
+				if("'"==c) { stack.push(s);s='q1'; } else
+				if('"'==c) { stack.push(s);s='q2'; } else
+				if('{'==c) { stack.push('space');s='space'; } else
 				if('}'==c) { s=stack.pop(); } else
+				if('('==c) { stack.push(s);s='idle'; } else
+				if(')'==c) { s=stack.pop(); } else
 				{ s='idle'; }
 			break;
 			case 'q1':
@@ -73,7 +77,7 @@ function whileformachine(js)
 			break;
 			case 'for':
 				if( (' '==c)||('\t'==c)||('\n'==c)||('\r'==c) ) s='for'; else
-				if('('==c) { stack.push('idle');s='for1'; } else
+				if('('==c) { s='for1'; } else
 				s = 'idle';
 			break;
 			case 'for1':
@@ -86,10 +90,13 @@ function whileformachine(js)
 				{ /* pass and do nothing */ }
 			break;
 			case 'for1end':
-				if(';'==c) { result=result.slice(0,-1)+'1;'; } else		/*for(;;) -> for(;$$tick(),1;)*/
-				s = 'idle';
+				if( (' '==c)||('\t'==c)||('\n'==c)||('\r'==c) ) s='for1end'; else
+				if(';'==c){ result=result.slice(0,-1)+'1;';stack.push('idle');s='idle'; } else	/*for(;;) -> for(;$$tick(),1;)*/
+				{ stack.push('idle');s='idle'; }
+				/*'idle' will pop when meet ')'*/
 			break;
 		}
+		//console.log(c,':',s,stack);
 	}
 
 	for(var i=0;i<js.length;i++) put(js[i]);

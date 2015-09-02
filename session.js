@@ -22,8 +22,12 @@ function sessionmachine(js)
 			case 'space':
 				if('s'==c) s='s';  else
 				if( (' '==c)||('\t'==c)||('\n'==c)||('\r'==c)||(';'==c) ) s='space'; else
-				if('{'==c) { stack.push(s);s='space'; } else
+				if("'"==c) { stack.push(s);s='q1'; } else
+				if('"'==c) { stack.push(s);s='q2'; } else
+				if('{'==c) { stack.push('space');s='space'; } else
 				if('}'==c) { s=stack.pop(); } else
+				if('('==c) { stack.push(s);s='space'; } else
+				if(')'==c) { s=stack.pop(); } else
 				{ s='idle'; }
 			break;
 			case 'q1':
