@@ -5,7 +5,7 @@ var net = require('net');
 
 module.exports = function(jssp)
 {
-	obj = {};
+	var obj = {};
 	obj.connect = function()
 	{
 		var socket = net.connect.apply(null,arguments);

@@ -1,10 +1,15 @@
+<!DOCTYPE html>
 <html>
---------begin--------<br>
-<? 
-	echo('hi');
-	T.list = [1,2,3,4,5];
-	T.age = [7,7,8,8,9,9];
-	render('name','myname');
+<body>
+<?  var os = require('os');
+    var cpulist = os.cpus();
+    echo('<p>System Uptime: '+Math.floor(os.uptime())+'</p>');
+
+    render('name','CPU');
+    T.os = os;	//equal to render('os',os);
+    render('cpulist',cpulist);
 ?>
-<br>{{-\n--{{name}}--\t---{{list[i]}}----{{age[].toFixed(2)}}----<br>}}
+<p>hostname is {{os.hostname()}}</p>
+{{<p>{{name}} Core{{INDEX}} user time is {{cpulist[].times.user}}</p>}}
+</body>
 </html>

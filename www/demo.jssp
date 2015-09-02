@@ -1,5 +1,8 @@
-Global Variable & Function:
-  __filename __dirname $_GET $_POST $_FILE $_SERVER $_ENV $_SESSION
-  echo exit include set_time_limit session_read session_write header headers_sent
-
-<?  echo("Hello");  ?>
+<html>
+<?  var http = require('http');
+    http.get({hostname:'google.com', path:'/', agent:false}, function (res) {
+        echo(res.statusCode);
+    });
+    setTimeout(function(){ echo('<br>wait') },4000);
+?>
+</html>

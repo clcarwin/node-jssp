@@ -18,12 +18,12 @@ module.exports = function(jssp)
 				}
 			}
 
-			if(typeof arguments[0] === 'string'){
-				arguments[0] = PathNormal(arguments[0]);
-				if(typeof arguments[1] === 'string'){
-					arguments[1] = PathNormal(arguments[1]);
-				}
-			}
+			if(typeof arguments[0] === 'string')
+			{ arguments[0] = PathNormal(arguments[0]) }
+
+			if( (key=='rename')||(key=='renameSync')||(key=='link')||(key=='linkSync')||
+				(key=='symlink')||(key=='symlinkSync') )
+			{ arguments[1] = PathNormal(arguments[1]) }
 
 			fs[key].apply(null,arguments);
 		}
@@ -49,11 +49,11 @@ module.exports = function(jssp)
 	{
 		var rel = '';
 		if( ('/'==filename[0])||('\\'==filename[0]) )
-			filename = path.relative(jssp.BaseDirectory,filename);
+			filename = path.relative(jssp.BASE,filename);
 		else filename = './' + filename;
 
 		filename = path.normalize('/'+filename); //delete .. in filename
-		filename = path.resolve(jssp.BaseDirectory,'./'+filename);
+		filename = path.resolve(jssp.BASE,'./'+filename);
 		return filename;
 	}
 

@@ -48,7 +48,7 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 	jssp.$_POST = postobj;
 	jssp.$_FILE = fileobj;
 	jssp.$_SERVER = getenvobj(req);
-	jssp.$_ENV = jssp.GLOBAL_ENV;
+	jssp.$_ENV = jssp.ENV;
 
 	jssp.echo = function(str)
 	{
@@ -71,7 +71,7 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 	jssp.include = function(filename,fn)
 	{
 		filename = path.normalize('/'+filename); //delete .. in filename
-		filename = path.resolve(jssp.BaseDirectory,'./'+filename);
+		filename = path.resolve(jssp.BASE,'./'+filename);
 
 		var code;
 		var stats = fs.statSync(filename);
@@ -125,11 +125,12 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 	}
 	jssp.header = function(name,value,responsecode)
 	{
-		jssp.domainobj.run(function()
-		{ 
-			res.setHeader(name,value);
-			if(responsecode) res.statusCode = responsecode;
-		});
+		res.setHeader(name,value);
+		if(responsecode) res.statusCode = responsecode;
+	}
+	jssp.headers_sent = function()
+	{
+		return res.headersSent;
 	}
 
 	var ssesid;
@@ -146,7 +147,7 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 
 		res.setHeader('Set-Cookie','JSSPSESSID='+obj.ssesid);
 
-		jssp.GLOBAL_SESSIONS[obj.ssesid] = obj;
+		jssp.SESSIONS[obj.ssesid] = obj;
 		return obj.ssesid;
 	}
 	jssp.session_start = function()
@@ -154,9 +155,9 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 		if(!ssesid) ssesid = splitsessionid(req.headers['cookie']);
 		if(!ssesid) ssesid = jssp.internal_session_newid();
 
-		obj = jssp.GLOBAL_SESSIONS[ssesid];
+		obj = jssp.SESSIONS[ssesid];
 		if(!obj) ssesid  = jssp.internal_session_newid();	//ssesid invalid
-		if(!obj) obj = jssp.GLOBAL_SESSIONS[ssesid];
+		if(!obj) obj = jssp.SESSIONS[ssesid];
 
 		obj.time = process.hrtime();
 		return obj.sessobj;
@@ -167,16 +168,16 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 	}
 	jssp.session_destroy = function()
 	{
-		var obj = jssp.GLOBAL_SESSIONS[ssesid];
+		var obj = jssp.SESSIONS[ssesid];
 		if(!obj) return;
 		clearInterval(obj.id);
 		jssp.session_unset();
-		delete jssp.GLOBAL_SESSIONS[ssesid];
+		delete jssp.SESSIONS[ssesid];
 		ssesid = undefined;
 	}
 	jssp.session_unset = function()
 	{
-		var obj = jssp.GLOBAL_SESSIONS[ssesid];
+		var obj = jssp.SESSIONS[ssesid];
 		if(!obj) return;
 		var sessobj = obj.sessobj;
 		for(var key in sessobj) delete sessobj[key];
@@ -210,9 +211,10 @@ function JSSPInit(jssp,req,res,postobj,fileobj,code,filename)
 		if(name==='fs') obj = require('./fakefs.js')(jssp);
 		if(name==='net') obj = require('./fakenet.js')(jssp);
 		if(name==='http') obj = require('./fakehttp.js')(jssp);
+		if(name==='child_process') obj = require('./fakecp.js')(jssp);
 
 		if( (name==='string_decoder')||(name==='crypto')||(name==='os')||
-			(name==='path')||(name==='url')||(name==='util') )
+			(name==='path')||(name==='url')||(name==='util')||(name==='querystring') )
 		{
 			obj = require(name);
 		}
@@ -260,9 +262,10 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 	var jssp = {};
 	jssp.vm              = vm;
 	jssp.EvalCode        = undefined;
-	jssp.BaseDirectory   = options.BaseDirectory;
-	jssp.GLOBAL_ENV      = options.GLOBAL_ENV;
-	jssp.GLOBAL_SESSIONS = options.GLOBAL_SESSIONS;
+	jssp.BASE            = options.BASE;
+	jssp.ENV             = options.ENV;
+	jssp.EXT             = options.EXT;
+	jssp.SESSIONS        = options.SESSIONS;
 	jssp.CODECACHE       = options.CODECACHE;
 	jssp.CODEMTIME       = options.CODEMTIME;
 
@@ -273,7 +276,8 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 	jssp.__dirname     = path.dirname(filename);
 	jssp.__code        = code;
 	jssp.__codename    = filename+'.js';
-	jssp.module = {"exports":{}};
+	jssp.module        = {"exports":{}};
+	jssp.Buffer        = Buffer;
 
 	var objectset  = new Set();
 	jssp.objectset = objectset;
@@ -350,12 +354,12 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 		maxtimer = setTimeout(function()
 		{
 			maxtimer = undefined;
-			var str = 'EXCEED MAXEXECUTETIME: ' + jssp.__codename + '\n';
+			var str = 'EXCEED EXECTIME: ' + jssp.__codename + '\n';
 			objectset.forEach(function(obj){ str+=util.inspect(obj,{depth:0}) });
 			jssp.internalexit(jssp.errorformat(str));
 		},timeout);
 	}
-	jssp.setmaxtimer(options.MaxExecuteTime);
+	jssp.setmaxtimer(options.EXECTIME);
 
 	jssp.errorformat = function(e)
 	{

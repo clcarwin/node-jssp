@@ -28,8 +28,9 @@
 
 <script>
   var str = 'Global Variable & Function:\n'
-           +'  __filename __dirname $_GET $_POST $_FILE $_SERVER $_ENV $_SESSION\n'
-           +'  echo exit include set_time_limit session_read session_write header headers_sent\n\n';
+           +'  __filename __dirname T EXT SESSION GET POST FILE SERVER ENV\n\n'
+           +'  echo exit include render set_time_limit header headers_sent\n'
+           +'  session_start session_id session_destroy session_unset\n\n';
   textcode.value = str + '\<\?  echo("Hello");  \?\>';
   function submitcode()
   {

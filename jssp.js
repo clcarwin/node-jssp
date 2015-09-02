@@ -20,32 +20,35 @@ function JSSPCore()
 	this.CreateServer = function()
 	{
 		var options = {};
-		options.BaseDirectory   = path.resolve(__dirname,'www');
-		options.MaxExecuteTime  = 60*1000;
-		options.MaxPostSize     = 128*1024*1024;
-		options.GLOBAL_ENV      = {};
-		options.GLOBAL_SESSIONS = {};
-		options.CODECACHE       = {};
-		options.CODEMTIME       = {};
+		options.BASE      = path.resolve(__dirname,'www');
+		options.EXECTIME  = 60*1000;
+		options.POSTSIZE  = 128*1024*1024;
+		options.ENV       = {};
+		options.EXT       = {};
+		options.SESSIONS  = {};
+		options.CODECACHE = {};
+		options.CODEMTIME = {};
 
 		var vmobj = CreateGlobalObject();
 		var code = VMStart.toString()+';VMStart();'
 		vm.runInNewContext(code,vmobj);
 		Object.freeze(vmobj);	//disable to define global variable
 
-		for(var key in process.env) options.GLOBAL_ENV[key] = process.env[key];
-		Object.defineProperty(options.GLOBAL_ENV, 'Ext', { get:function(){ return options.Ext; } });
-		Object.freeze(options.GLOBAL_ENV);
+		for(var key in process.env) options.ENV[key] = process.env[key];
 
 		var server = http.createServer(function (req, res) 
 		{
 			RenderPage(req,res,vmobj,options);
 		});
 
-		server.setOptions = function(op)
+		server.setopt = function(op)
 		{
 			for(var key in op) options[key] = op[key];
-			options.BaseDirectory   = path.resolve(__dirname,options.BaseDirectory);
+			options.BASE   = path.resolve(__dirname,options.BASE);
+		}
+		server.setext = function(name,value)
+		{
+			options.EXT[name] = value;
 		}
 		return server;
 	}
@@ -56,7 +59,7 @@ function JSSPCore()
 		var filename = urlparse.pathname;
 		if( (!filename)||('/'==filename) ) filename = 'index.jssp';
 		filename = path.normalize('/'+filename); //delete .. in filename
-		filename = path.resolve(options.BaseDirectory,'./'+filename);
+		filename = path.resolve(options.BASE,'./'+filename);
 
 		if('POST'==req.method)
 		{
@@ -66,8 +69,8 @@ function JSSPCore()
 			{
 				chunklist.push(chunk);
 				size += chunk.length;
-				if(size>options.MaxPostSize)
-				{ chunklist=[];return res.end('EXCEED MAXPOSTSIZE') }
+				if(size>options.POSTSIZE)
+				{ chunklist=[];return res.end('EXCEED POSTSIZE') }
 			});
 			req.on('error',function(){});
 			req.on('end',function()
@@ -206,9 +209,6 @@ function VMStart()
 		var VMStart   = undefined;
 		var EvalCode  = undefined;
 
-		var echo      = jssp.echo;
-		var exit      = jssp.exit;
-		var include   = jssp.include;
 		var __filename= jssp.__filename;
 		var __FILE__  = jssp.__filename;
 		var __dirname = jssp.__dirname;
@@ -228,7 +228,8 @@ function VMStart()
 
 		var $$arraypush    = jssp.arraypush;
 		var $$tick         = jssp.tick;
-		var $$T      = jssp.T;        var T = jssp.T;
+		var $$T      = jssp.T;        var T      = jssp.T;
+		var $_EXT    = jssp.EXT;      var EXT    = jssp.EXT;
 
 		var $_SESSION=undefined;      var SESSION=undefined;
 		var $_GET    = jssp.$_GET;    var GET    = jssp.$_GET;
@@ -236,9 +237,12 @@ function VMStart()
 		var $_FILE   = jssp.$_FILE;   var FILE   = jssp.$_FILE;
 		var $_SERVER = jssp.$_SERVER; var SERVER = jssp.$_SERVER;
 		var $_ENV    = jssp.$_ENV;    var ENV    = jssp.$_ENV;
+		var echo               = jssp.echo;
+		var exit               = jssp.exit;
+		var include            = jssp.include;
 		var set_time_limit     = jssp.set_time_limit;
 		var header             = jssp.header;
-		var include            = jssp.include;
+		var headers_sent       = jssp.headers_sent;
 		var session_start      = jssp.session_start;
 		var session_id         = jssp.session_id;
 		var session_destroy    = jssp.session_destroy;
@@ -277,7 +281,7 @@ if(require.main === module)
 {
 	//run without be required
 	var argv = process.argv;
-	var port = '80';
+	var port = '8080';
 	var ip   = '0.0.0.0';
 	var base = 'www';
 	var multi= false;
@@ -297,6 +301,6 @@ if(require.main === module)
 		var jsspcore = module.exports;
 		var server = jsspcore.CreateServer();
 		server.listen(port,ip);
-		server.setOptions({"BaseDirectory":base});
+		server.setopt({"BASE":base});
 	}
 }

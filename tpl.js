@@ -97,7 +97,8 @@ function tplmachine(html)
 	function tplpushname(str)
 	{
 		str = str.replace('[]','[$$$$i]');	//$$ is $ in regex
-		str = str.replace('[i]','[$$$$i]');	//$$ is $ in regex
+		str = str.replace('[i]','[$$$$i]');
+		str = str.replace('[INDEX]','[$$$$i]');
 		var index = str.indexOf('[$$i]');
 		if(index>=0) arrlist.push('$$T.'+str.slice(0,index));
 
@@ -112,7 +113,8 @@ function tplmachine(html)
 		{
 			if(arrlist.length) arrlist.push(arrlist[0]+'.length');
 			else arrlist.push('1');
-			js += 'for(var $$i=0;$$i<Math.min('+arrlist.join('.length,')+');$$i++)\n{\n';
+			js += 'for(var $$i=0;$$i<Math.min('+arrlist.join('.length,')+');$$i++)\n{\n'
+				+ '$$T.INDEX=$$i\n';
 			js += tpllist.join('');
 			js += '\n}';
 		}
