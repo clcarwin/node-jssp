@@ -13,64 +13,50 @@ var compilemachine = require(jsbase + 'compile.js');
 
 module.exports = new JSSPCore();
 
-var BaseDirectory  = './www/';
-var MaxExecuteTime = 60*1000;//60 seconds
-var MaxPostSize    = 20*1024*1024;//20MB
-var ExternalObject = undefined;//set by external code
-var GLOBAL_ENV     = {};
-var GLOBAL_SESSIONS= {};
-var CODECACHE      = {};	//filename -> code
-var CODEMTIME      = {};	//filename -> mtime
 
-var option = {};
-option.BaseDirectory   = BaseDirectory;
-option.MaxExecuteTime  = MaxExecuteTime;
-option.GLOBAL_ENV      = GLOBAL_ENV;
-option.GLOBAL_SESSIONS = GLOBAL_SESSIONS;
-option.CODECACHE       = CODECACHE;
-option.CODEMTIME       = CODEMTIME;
 
 function JSSPCore()
 {
 	this.CreateServer = function()
 	{
-		BaseDirectory = path.resolve(__dirname,BaseDirectory);
+		var options = {};
+		options.BaseDirectory   = path.resolve(__dirname,'www');
+		options.MaxExecuteTime  = 60*1000;
+		options.MaxPostSize     = 128*1024*1024;
+		options.GLOBAL_ENV      = {};
+		options.GLOBAL_SESSIONS = {};
+		options.CODECACHE       = {};
+		options.CODEMTIME       = {};
+
 		var vmobj = CreateGlobalObject();
 		var code = VMStart.toString()+';VMStart();'
 		vm.runInNewContext(code,vmobj);
 		Object.freeze(vmobj);	//disable to define global variable
 
-		for(var key in process.env) GLOBAL_ENV[key] = process.env[key];
-		Object.defineProperty(GLOBAL_ENV, 'external', { get:function(){ return ExternalObject; } });
-		Object.freeze(GLOBAL_ENV);
+		for(var key in process.env) options.GLOBAL_ENV[key] = process.env[key];
+		Object.defineProperty(options.GLOBAL_ENV, 'Ext', { get:function(){ return options.Ext; } });
+		Object.freeze(options.GLOBAL_ENV);
 
 		var server = http.createServer(function (req, res) 
 		{
-			RenderPage(req,res,vmobj);
+			RenderPage(req,res,vmobj,options);
 		});
 
-		server.setBase = function(basepath)
+		server.setOptions = function(op)
 		{
-			BaseDirectory = path.resolve(__dirname,basepath);
-		}
-		server.setPost = function(maxsize)
-		{
-			MaxPostSize = maxsize;
-		}
-		server.setExternal = function(obj)
-		{
-			ExternalObject = obj;
+			for(var key in op) options[key] = op[key];
+			options.BaseDirectory   = path.resolve(__dirname,options.BaseDirectory);
 		}
 		return server;
 	}
 
-	function RenderPage(req,res,vmobj)
+	function RenderPage(req,res,vmobj,options)
 	{
 		var urlparse = url.parse(req.url,true);
 		var filename = urlparse.pathname;
 		if( (!filename)||('/'==filename) ) filename = 'index.jssp';
 		filename = path.normalize('/'+filename); //delete .. in filename
-		filename = path.resolve(BaseDirectory,'./'+filename);
+		filename = path.resolve(options.BaseDirectory,'./'+filename);
 
 		if('POST'==req.method)
 		{
@@ -80,7 +66,7 @@ function JSSPCore()
 			{
 				chunklist.push(chunk);
 				size += chunk.length;
-				if(size>MaxPostSize)
+				if(size>options.MaxPostSize)
 				{ chunklist=[];return res.end('EXCEED MAXPOSTSIZE') }
 			});
 			req.on('error',function(){});
@@ -118,17 +104,17 @@ function JSSPCore()
 			else
 			{
 				var code;
-				var time = CODEMTIME[filename];
+				var time = options.CODEMTIME[filename];
 				if(time!==stats.mtime.getTime())
 				{
 					try{ code = fs.readFileSync(filename,{'encoding':'utf8'}) }
 					catch(e){ cb(e);return; }
 					code = compilemachine(code);
-					CODECACHE[filename] = code;
-					CODEMTIME[filename] = stats.mtime.getTime();
+					options.CODECACHE[filename] = code;
+					options.CODEMTIME[filename] = stats.mtime.getTime();
 				}
-				else { code = CODECACHE[filename]; }
-				process.emit('newpage',option,req,res,postobj,fileobj,code,filename);
+				else { code = options.CODECACHE[filename]; }
+				process.emit('newpage',options,req,res,postobj,fileobj,code,filename);
 			}
 		}
 	}
@@ -278,9 +264,9 @@ function VMStart()
 	for(var key in this) delete this[key];
 	Object.freeze(this);
 
-	process.on('newpage',function(option,req,res,postobj,fileobj,code,filename)
+	process.on('newpage',function(options,req,res,postobj,fileobj,code,filename)
 	{
-		var jssp = JSSPCoreInit(option,req,res,postobj,fileobj,code,filename);
+		var jssp = JSSPCoreInit(options,req,res,postobj,fileobj,code,filename);
 		jssp.EvalCode = EvalCode;
 		EvalCode(code,jssp);
 	});
@@ -293,7 +279,7 @@ if(require.main === module)
 	var argv = process.argv;
 	var port = '80';
 	var ip   = '0.0.0.0';
-	var base = './www/';
+	var base = 'www';
 	var multi= false;
 
 	if(argv[2]) port = argv[2];
@@ -311,6 +297,6 @@ if(require.main === module)
 		var jsspcore = module.exports;
 		var server = jsspcore.CreateServer();
 		server.listen(port,ip);
-		server.setBase(base);
+		server.setOptions({"BaseDirectory":base});
 	}
 }

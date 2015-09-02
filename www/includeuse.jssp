@@ -4,7 +4,7 @@
 	var obj = include('includeimp.jssp');
 	echo('1+2='+obj.add(1,2)+'\n');
 	include('includeimp.jssp');
-	echo('1+2='+obj.add(1,2)+'\n');
+	//echo('1+2='+obj.add(1,2)+'\n');
 ?>
 1
 <? echo(2) ?>

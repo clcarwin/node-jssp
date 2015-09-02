@@ -255,16 +255,16 @@ function JSSPInit(jssp,req,res,postobj,fileobj,code,filename)
 
 }
 
-function JSSPCoreInit(option,req,res,postobj,fileobj,code,filename)
+function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 {
 	var jssp = {};
 	jssp.vm              = vm;
 	jssp.EvalCode        = undefined;
-	jssp.BaseDirectory   = option.BaseDirectory;
-	jssp.GLOBAL_ENV      = option.GLOBAL_ENV;
-	jssp.GLOBAL_SESSIONS = option.GLOBAL_SESSIONS;
-	jssp.CODECACHE       = option.CODECACHE;
-	jssp.CODEMTIME       = option.CODEMTIME;
+	jssp.BaseDirectory   = options.BaseDirectory;
+	jssp.GLOBAL_ENV      = options.GLOBAL_ENV;
+	jssp.GLOBAL_SESSIONS = options.GLOBAL_SESSIONS;
+	jssp.CODECACHE       = options.CODECACHE;
+	jssp.CODEMTIME       = options.CODEMTIME;
 
 	jssp.html = [];
 	jssp.htmlstack = [];
@@ -355,7 +355,7 @@ function JSSPCoreInit(option,req,res,postobj,fileobj,code,filename)
 			jssp.internalexit(jssp.errorformat(str));
 		},timeout);
 	}
-	jssp.setmaxtimer(option.MaxExecuteTime);
+	jssp.setmaxtimer(options.MaxExecuteTime);
 
 	jssp.errorformat = function(e)
 	{
