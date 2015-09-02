@@ -1,0 +1,14 @@
+<? var spawn = require('child_process').spawn;
+var ping = spawn('ping',['8.8.8.8']);
+
+ping.stdout.on('data',function(data)
+{
+	echo(data);
+});
+
+setTimeout(function()
+{
+	ping.kill();
+},5000);
+?>
+----end----
