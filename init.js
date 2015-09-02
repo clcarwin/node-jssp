@@ -343,7 +343,8 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 		if( (tickcount)&&(0==tickcount%102400) )
 		{
 			if(!ticktime) ticktime=process.hrtime();
-			if(process.hrtime(ticktime)[0]>0) throw new Error('EXCEED TICKTIME');
+			if(process.hrtime(ticktime)[0]*1000>=options.TICKTIME) 
+			throw new Error('EXCEED TICKTIME');
 		}
 	}
 

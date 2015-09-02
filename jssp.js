@@ -22,6 +22,7 @@ function JSSPCore()
 		var options = {};
 		options.BASE      = path.resolve(__dirname,'www');
 		options.EXECTIME  = 60*1000;
+		options.TICKTIME  = 1*1000;
 		options.POSTSIZE  = 128*1024*1024;
 		options.ENV       = {};
 		options.EXT       = {};
