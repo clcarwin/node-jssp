@@ -6,62 +6,48 @@ var path = require('path');
 
 module.exports = function(jssp)
 {
-	function CreateStub(key)
+	function fsstub(key)
 	{
 		return function()
 		{
-			for(var i=0;i<arguments.length;i++)
-			{
-				if(typeof arguments[i] === 'function')
-				{
-					arguments[i] = CreateCallback(arguments[i]);
-				}
-			}
+			var a = arguments;
+			for(var i=0;i<a.length;i++)
+			if(typeof a[i] === 'function') { a[i]=fscb(a[i]) }
 
-			if(typeof arguments[0] === 'string')
-			{ arguments[0] = PathNormal(arguments[0]) }
+			if(typeof a[0] === 'string') { a[0]=PathNormal(a[0]) }
 
 			if( (key=='rename')||(key=='renameSync')||(key=='link')||(key=='linkSync')||
 				(key=='symlink')||(key=='symlinkSync') )
-			{ arguments[1] = PathNormal(arguments[1]) }
+			{ a[1] = PathNormal(a[1]) }
 
-			fs[key].apply(null,arguments);
+			fs[key].apply(null,a);
 		}
 	}
 
-	function CreateCallback(cb)
+	function fscb(cb)
 	{
 		var flag  = true;
 		var newcb = function()
 		{
-			if(flag)
-			{
-				cb.apply(null,arguments);
-				jssp.objectdel(newcb);
-			}
+			if(flag) cb.apply(null,arguments);
+			jssp.objectdel(newcb);
 		}
-		newcb.jsspclose = function(){ flag = false;};
+		newcb.jsspclose = function(){ flag=false };
 		jssp.objectadd(newcb);
 		return newcb;
 	}
 
 	function PathNormal(filename)
 	{
-		var rel = '';
-		if( ('/'==filename[0])||('\\'==filename[0]) )
-			filename = path.relative(jssp.BASE,filename);
-		else filename = './' + filename;
-
-		filename = path.normalize('/'+filename); //delete .. in filename
-		filename = path.resolve(jssp.BASE,'./'+filename);
-		return filename;
+		if(filename[0]==='/') return filename;
+		else return path.resolve(jssp.BASE,'./'+filename);
 	}
 
 
 	var obj = {};
 	for(var key in fs)
 	{
-		obj[key] = CreateStub(key);
+		obj[key] = fsstub(key);
 	}
 
 	return obj;
