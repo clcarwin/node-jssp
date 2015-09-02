@@ -1,7 +1,7 @@
 {
   "name": "jssp",
-  "version": "0.3.0",
-  "description": "JavaScript Server Page on nodejs. The syntax looks like PHP.",
+  "version": "1.0.0",
+  "description": "JavaScript Server Page on nodejs. Template engine and embedding nodejs code in html.",
   "main": "jssp.js",
   "repository": {
     "type": "git",
@@ -10,7 +10,8 @@
   "keywords": [
     "jssp",
     "php",
-    "dynamic"
+    "dynamic",
+    "template"
   ],
   "author": "carwin",
   "license": "MIT"
