@@ -21,6 +21,12 @@ Run as simple web server:
 node jssp.js 8080
 ```
 
+Run as shell command:
+
+```bash
+node jssp.js www/aa.jssp
+```
+
 Run with other nodejs code:
 
 ```js

@@ -8,7 +8,8 @@ ping.stdout.on('data',function(data)
 
 setTimeout(function()
 {
-	ping.kill();
+	//ping.kill();
+	exit('\n----end by exit----')
 },5000);
 ?>
 ----end----

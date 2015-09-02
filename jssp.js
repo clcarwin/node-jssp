@@ -38,7 +38,7 @@ function JSSPCore()
 
 		var server = http.createServer(function (req, res) 
 		{
-			RenderPage(req,res,vmobj,options);
+			RenderPage(options,req,res);
 		});
 
 		server.setopt = function(op)
@@ -50,10 +50,24 @@ function JSSPCore()
 		{
 			options.EXT[name] = value;
 		}
+		server.command = function(filename)
+		{
+			server.close();
+			filename = path.resolve(filename);
+
+			var res=process.stdout;
+			res.setHeader = function(){};
+			var req={};
+			req.url     = 'file://'+filename;
+			req.socket  = {};
+			req.headers = {};
+
+			ServerFile(filename,options,req,res,{},{});
+		}
 		return server;
 	}
 
-	function RenderPage(req,res,vmobj,options)
+	function RenderPage(options,req,res)
 	{
 		var urlparse = url.parse(req.url,true);
 		var filename = urlparse.pathname;
@@ -79,46 +93,46 @@ function JSSPCore()
 				try{ postparse(req,Buffer.concat(chunklist),postobj,fileobj);
 				}catch(e){ return res.end('POST DATA PARSE ERROR') }
 
-				ServerFile(filename,req,res,postobj,fileobj);
+				ServerFile(filename,options,req,res,postobj,fileobj);
 			});
 		}
 		else
 		{
-			ServerFile(filename,req,res,{},{});
+			ServerFile(filename,options,req,res,{},{});
+		}
+	}
+
+	function ServerFile(filename,options,req,res,postobj,fileobj)
+	{
+		var cb = function(err)
+		{
+			if( (''+err).indexOf('ENOENT')>=0 ) res.write('<h1>404 Not Found</h1>');
+			var str = '<p>'+err+'</p>';
+			var dir = path.normalize(__dirname+path.sep+'..');
+			res.end(str.replace(dir,'...'));
 		}
 
-		function ServerFile(filename,req,res,postobj,fileobj)
+		var stats;
+		try{ stats = fs.statSync(filename) }catch(e){ cb(e);return; }
+		if('.jssp'!=path.extname(filename))
 		{
-			var cb = function(err)
+			res.setHeader('Content-Length', stats.size);
+			fs.createReadStream(filename).on('error',function(){}).pipe(res);
+		}
+		else
+		{
+			var code;
+			var time = options.CODEMTIME[filename];
+			if(time!==stats.mtime.getTime())
 			{
-				if( (''+err).indexOf('ENOENT')>=0 ) res.write('<h1>404 Not Found</h1>');
-				var str = '<p>'+err+'</p>';
-				var dir = path.normalize(__dirname+path.sep+'..');
-				res.end(str.replace(dir,'...'));
+				try{ code = fs.readFileSync(filename,{'encoding':'utf8'}) }
+				catch(e){ cb(e);return; }
+				code = compilemachine(code);
+				options.CODECACHE[filename] = code;
+				options.CODEMTIME[filename] = stats.mtime.getTime();
 			}
-
-			var stats;
-			try{ stats = fs.statSync(filename) }catch(e){ cb(e);return; }
-			if('.jssp'!=path.extname(filename))
-			{
-				res.setHeader('Content-Length', stats.size);
-				fs.createReadStream(filename).on('error',function(){}).pipe(res);
-			}
-			else
-			{
-				var code;
-				var time = options.CODEMTIME[filename];
-				if(time!==stats.mtime.getTime())
-				{
-					try{ code = fs.readFileSync(filename,{'encoding':'utf8'}) }
-					catch(e){ cb(e);return; }
-					code = compilemachine(code);
-					options.CODECACHE[filename] = code;
-					options.CODEMTIME[filename] = stats.mtime.getTime();
-				}
-				else { code = options.CODECACHE[filename]; }
-				process.emit('newpage',options,req,res,postobj,fileobj,code,filename);
-			}
+			else { code = options.CODECACHE[filename]; }
+			process.emit('newpage',options,req,res,postobj,fileobj,code,filename);
 		}
 	}
 
@@ -300,7 +314,7 @@ if(require.main === module)
 	{
 		var jsspcore = module.exports;
 		var server = jsspcore.CreateServer();
-		server.listen(port,ip);
-		server.setopt({"BASE":base});
+		if(isNaN(parseInt(port))) { server.command(port) }
+		else{ server.listen(port,ip); server.setopt({"BASE":base}) }
 	}
 }
