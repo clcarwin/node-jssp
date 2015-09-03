@@ -1,7 +1,6 @@
 var jsbase = __dirname + '/';
 var tplmachine = require(jsbase + 'tpl.js');
 var whileformachine = require(jsbase + 'whilefor.js');
-var includemachine  = require(jsbase + 'include.js');
 var sessionmachine  = require(jsbase + 'session.js');
 
 //*.jssp file to js code
@@ -70,7 +69,6 @@ function complemachine(html)
 	{
 		if(!str) return;
 		str = whileformachine(str);
-		if(str.indexOf('include')>=0) str = includemachine(str);
 
 		result.push('$$arraypush(function(){\n' + str + '\n});\n');
 	}

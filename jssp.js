@@ -36,6 +36,22 @@ function JSSPCore()
 		Object.freeze(vmobj);	//disable to define global variable
 
 		for(var key in process.env) options.ENV[key] = process.env[key];
+		options.codebyname = function(filename)
+		{
+			var code; var stats;
+			try{ stats = fs.statSync(filename) }catch(e){ return e; }
+			var time = options.CODEMTIME[filename];
+			if(time!==stats.mtime.getTime())
+			{
+				try{ code = fs.readFileSync(filename,{'encoding':'utf8'}) }
+				catch(e){ return e; }
+				code = compilemachine(code);
+				options.CODECACHE[filename] = code;
+				options.CODEMTIME[filename] = stats.mtime.getTime();
+			}
+			else { code = options.CODECACHE[filename]; }
+			return code;
+		}
 
 		var server = http.createServer(function (req, res) 
 		{
@@ -113,27 +129,18 @@ function JSSPCore()
 			res.end(str.replace(dir,'...'));
 		}
 
-		var stats;
-		try{ stats = fs.statSync(filename) }catch(e){ cb(e);return; }
 		if('.jssp'!=path.extname(filename))
 		{
+			try{ var stats = fs.statSync(filename) }catch(e){ cb(e);return; }
 			res.setHeader('Content-Length', stats.size);
 			fs.createReadStream(filename).on('error',function(){}).pipe(res);
 		}
 		else
 		{
-			var code;
-			var time = options.CODEMTIME[filename];
-			if(time!==stats.mtime.getTime())
-			{
-				try{ code = fs.readFileSync(filename,{'encoding':'utf8'}) }
-				catch(e){ cb(e);return; }
-				code = compilemachine(code);
-				options.CODECACHE[filename] = code;
-				options.CODEMTIME[filename] = stats.mtime.getTime();
-			}
-			else { code = options.CODECACHE[filename]; }
-			process.emit('newpage',options,req,res,postobj,fileobj,code,filename);
+			var code = options.codebyname(filename);
+			if(code.stack) { cb(code);return; }	//code is an Error
+			var jssp = JSSPCoreInit(options,req,res,postobj,fileobj,code,filename);
+			process.emit('newpage',jssp,code);
 		}
 	}
 
@@ -216,7 +223,7 @@ function postparse(req,postbuffer,postobj,fileobj)
 
 function VMStart()
 {
-	function EvalCode(code,jssp)
+	function EvalCode(jssp,code)
 	{
 		var process   = undefined;
 		var JSSPCoreInit = undefined;
@@ -248,7 +255,7 @@ function VMStart()
 
 		var $_SESSION=undefined;      var SESSION=undefined;
 		var $_GET    = jssp.$_GET;    var GET    = jssp.$_GET;
-		var $_POST   = jssp.$_POST;	  var POST   = jssp.$_POST;	
+		var $_POST   = jssp.$_POST;	  var POST   = jssp.$_POST;
 		var $_FILE   = jssp.$_FILE;   var FILE   = jssp.$_FILE;
 		var $_SERVER = jssp.$_SERVER; var SERVER = jssp.$_SERVER;
 		var $_ENV    = jssp.$_ENV;    var ENV    = jssp.$_ENV;
@@ -272,7 +279,7 @@ function VMStart()
 		catch(e)
 		{ jssp.internalexit(jssp.errorformat(e)) };
 
-		jssp.runnext();
+		if(0==jssp.includecount) jssp.runnext();
 		jssp = undefined;
 	}
 	
@@ -283,11 +290,10 @@ function VMStart()
 	for(var key in this) delete this[key];
 	Object.freeze(this);
 
-	process.on('newpage',function(options,req,res,postobj,fileobj,code,filename)
+	process.on('newpage',function(jssp,code)
 	{
-		var jssp = JSSPCoreInit(options,req,res,postobj,fileobj,code,filename);
 		jssp.EvalCode = EvalCode;
-		EvalCode(code,jssp);
+		EvalCode(jssp,code);
 	});
 }
 

@@ -52,6 +52,8 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 
 	jssp.echo = function(str)
 	{
+		if(jssp.requirejsspflag) return;
+
 		if(Buffer.isBuffer(str))
 		{
 			jssp.output(jssp.echocache); jssp.echocache='';
@@ -66,57 +68,94 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 	}
 	jssp.exit = function(str)
 	{
+		if(jssp.requirejsspflag) return;
 		jssp.internalexit(str);
 	}
-	jssp.include = function(filename,fn)
+
+	jssp.includecount = 0;
+	jssp.include = function(filename)
 	{
 		filename = path.normalize('/'+filename); //delete .. in filename
-		filename = path.resolve(jssp.BASE,'./'+filename);
+		filename = path.resolve(jssp.__dirname,'./'+filename);
 
-		var code;
-		var stats = fs.statSync(filename);
-		var time = jssp.CODEMTIME[filename];
-		if(time!==stats.mtime.getTime())
-		{
-			try{ code = fs.readFileSync(filename,{'encoding':'utf8'}) }
-			catch(e){ cb(e);return; }
-			code = compilemachine(code);
-			jssp.CODECACHE[filename] = code;
-			jssp.CODEMTIME[filename] = stats.mtime.getTime();
-		}
-		else { code = jssp.CODECACHE[filename]; }
-		
+		var code = jssp.codebyname(filename);
+		if(code.stack) throw code;
+
 		var oldfilename;
 		var oldcode;
 		function push()
 		{
-			jssp.htmlstack.push(jssp.html); jssp.html=[];
-
-			oldfilename = jssp.__filename;
+			oldfilename     = jssp.__filename;
+			oldcode         = jssp.__code;
 			jssp.__filename = filename;
 			jssp.__dirname  = path.dirname(filename);
-			oldcode     = jssp.__code;
 			jssp.__code     = code;
 			jssp.__codename = filename+'.js';
 		}
 		function pop()
 		{
-			jssp.html = jssp.htmlstack.pop();
-
 			jssp.__filename = oldfilename;
 			jssp.__dirname  = path.dirname(oldfilename);
-			jssp.__code     = code;
+			jssp.__code     = oldcode;
 			jssp.__codename = oldfilename+'.js';
-
-			fn();
-			jssp.runnext();
 		}
 
-		push();
-		jssp.EvalCode(code,jssp);
-		jssp.arraypush(pop);
+		jssp.includecount++;
+		if(1==jssp.includecount)
+		{
+			jssp.htmlstack.push(jssp.html); jssp.html=[];
+			jssp.arraypush(function()					//count=0|push|xxx|pop|
+			{
+				jssp.includecount = 0;
+				jssp.arraypush(function()
+				{
+					jssp.html = jssp.htmlstack.pop();	//push|xxx|pop|push|xxx|pop|htmlpop
+				});
+			});
+		}
 
-		jssp.runnext();
+		jssp.arraypush(push);
+		push();jssp.EvalCode(jssp,code);pop();
+		jssp.arraypush(pop);
+	}
+	jssp.requirejsspflag = false;
+	jssp.requirejssp = function(filename)
+	{
+		filename = path.normalize('/'+filename); //delete .. in filename
+		filename = path.resolve(jssp.__dirname,'./'+filename);
+
+		var code = jssp.codebyname(filename);
+		if(code.stack) throw code;
+
+		var oldfilename;
+		var oldcode;
+		function push()
+		{
+			oldfilename     = jssp.__filename;
+			oldcode         = jssp.__code;
+			jssp.__filename = filename;
+			jssp.__dirname  = path.dirname(filename);
+			jssp.__code     = code;
+			jssp.__codename = filename+'.js';
+			jssp.requirejsspflag = true;
+		}
+		function pop()
+		{
+			jssp.__filename = oldfilename;
+			jssp.__dirname  = path.dirname(oldfilename);
+			jssp.__code     = oldcode;
+			jssp.__codename = oldfilename+'.js';
+			jssp.requirejsspflag = false;
+		}
+
+		jssp.htmlstack.push(jssp.html); jssp.html=[];
+		jssp.arraypush(push);
+
+		push();jssp.EvalCode(jssp,code);pop();
+
+		jssp.arraypush(pop);
+		jssp.arraypush(function(){ jssp.html = jssp.htmlstack.pop() });
+
 		return jssp.module.exports;
 	}
 	jssp.set_time_limit = function(timeout)
@@ -189,7 +228,7 @@ function JSSPInit(jssp,req,res,postobj,fileobj,code,filename)
 	jssp.arraypush = function(cb)
 	{
 		jssp.html.push(cb);
-	};
+	}
 	jssp.func2str = function(cb)
 	{
 		var str = cb.toString();
@@ -203,14 +242,16 @@ function JSSPInit(jssp,req,res,postobj,fileobj,code,filename)
 
 		str = list.join('\n');
 		return str;
-	};
+	}
 
 	jssp.require = function(name)
 	{
 		var obj;
-		if(name==='fs') obj = require('./fakefs.js')(jssp);
-		if(name==='net') obj = require('./fakenet.js')(jssp);
-		if(name==='http') obj = require('./fakehttp.js')(jssp);
+		if('.jssp'==path.extname(name)) obj = jssp.requirejssp(name);
+
+		if(name==='fs') obj = require('./fakefs.js')(jssp); else
+		if(name==='net') obj = require('./fakenet.js')(jssp); else
+		if(name==='http') obj = require('./fakehttp.js')(jssp); else
 		if(name==='child_process') obj = require('./fakecp.js')(jssp);
 
 		if( (name==='string_decoder')||(name==='crypto')||(name==='os')||
@@ -266,8 +307,7 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 	jssp.ENV             = options.ENV;
 	jssp.EXT             = options.EXT;
 	jssp.SESSIONS        = options.SESSIONS;
-	jssp.CODECACHE       = options.CODECACHE;
-	jssp.CODEMTIME       = options.CODEMTIME;
+	jssp.codebyname      = options.codebyname;
 
 	jssp.html = [];
 	jssp.htmlstack = [];

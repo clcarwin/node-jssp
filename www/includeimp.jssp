@@ -12,8 +12,8 @@
 		this.id = 12345;
 	}
 
-	setTimeout(function()
-	{
-		echo('    0.3 wait in include\n');
-	},1000);
+	// setTimeout(function()
+	// {
+	// 	echo('    0.3 wait in include\n');
+	// },1000);
 ?>    0.4
