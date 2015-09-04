@@ -1,5 +1,6 @@
     0.1
 <?
+	//include('includeimp2.jssp');
 	echo('    0.2 __run in includeimp__\n');
 
 	module.exports = new Test();
@@ -12,8 +13,8 @@
 		this.id = 12345;
 	}
 
-	// setTimeout(function()
-	// {
-	// 	echo('    0.3 wait in include\n');
-	// },1000);
+	setTimeout(function()
+	{
+		echo('    0.3 wait in include\n');
+	},1000);
 ?>    0.4

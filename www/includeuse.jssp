@@ -3,12 +3,12 @@
 	set_time_limit(10*1000);
 	var obj = include('includeimp.jssp');
 	echo('0-hi\n');
-	if(1) include('includeimp.jssp');
-	else echo('----end----\n');
+	//if(1) include('includeimp.jssp');
+	//else echo('----end----\n');
 ?>
 1
 <? echo(2) ?>
 3
 <?
-	var obj = require('includeimp.jssp');
-	echo(obj.add(5,5));
+	//var obj = require('includeimp.jssp');
+	//echo(obj.add(5,5));

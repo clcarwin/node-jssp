@@ -52,8 +52,6 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 
 	jssp.echo = function(str)
 	{
-		if(jssp.requirejsspflag) return;
-
 		if(Buffer.isBuffer(str))
 		{
 			jssp.output(jssp.echocache); jssp.echocache='';
@@ -63,16 +61,17 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 		{
 			if(typeof str === "function") str = jssp.func2str(str);
 			if(typeof str !== "string")   str = ''+str;
-			jssp.echocache += str;
+			//jssp.echocache += str;//disable cache for debug
+			jssp.output(str);
 		}
 	}
 	jssp.exit = function(str)
 	{
-		if(jssp.requirejsspflag) return;
 		jssp.internalexit(str);
 	}
 
-	jssp.includecount = 0;
+	jssp.includeflag  = false;
+	jssp.includecache = '';
 	jssp.include = function(filename)
 	{
 		filename = path.normalize('/'+filename); //delete .. in filename
@@ -85,78 +84,54 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 		var oldcode;
 		function push()
 		{
-			oldfilename     = jssp.__filename;
-			oldcode         = jssp.__code;
-			jssp.__filename = filename;
-			jssp.__dirname  = path.dirname(filename);
-			jssp.__code     = code;
-			jssp.__codename = filename+'.js';
+			oldfilename      = jssp.__filename;
+			oldcode          = jssp.__code;
+			jssp.__filename  = filename;
+			jssp.__dirname   = path.dirname(filename);
+			jssp.__code      = code;
+			jssp.__codename  = filename+'.js';
 		}
 		function pop()
 		{
-			jssp.__filename = oldfilename;
-			jssp.__dirname  = path.dirname(oldfilename);
-			jssp.__code     = oldcode;
-			jssp.__codename = oldfilename+'.js';
+			jssp.__filename  = oldfilename;
+			jssp.__dirname   = path.dirname(oldfilename);
+			jssp.__code      = oldcode;
+			jssp.__codename  = oldfilename+'.js';
 		}
 
-		jssp.includecount++;
-		if(1==jssp.includecount)
-		{
-			jssp.htmlstack.push(jssp.html); jssp.html=[];
-			jssp.arraypush(function()					//count=0|push|xxx|pop|
-			{
-				jssp.includecount = 0;
-				jssp.arraypush(function()
-				{
-					jssp.html = jssp.htmlstack.pop();	//push|xxx|pop|push|xxx|pop|htmlpop
-				});
-			});
-		}
-
-		jssp.arraypush(push);
-		push();jssp.EvalCode(jssp,code);pop();
-		jssp.arraypush(pop);
-	}
-	jssp.requirejsspflag = false;
-	jssp.requirejssp = function(filename)
-	{
-		filename = path.normalize('/'+filename); //delete .. in filename
-		filename = path.resolve(jssp.__dirname,'./'+filename);
-
-		var code = jssp.codebyname(filename);
-		if(code.stack) throw code;
-
-		var oldfilename;
-		var oldcode;
-		function push()
-		{
-			oldfilename     = jssp.__filename;
-			oldcode         = jssp.__code;
-			jssp.__filename = filename;
-			jssp.__dirname  = path.dirname(filename);
-			jssp.__code     = code;
-			jssp.__codename = filename+'.js';
-			jssp.requirejsspflag = true;
-		}
-		function pop()
-		{
-			jssp.__filename = oldfilename;
-			jssp.__dirname  = path.dirname(oldfilename);
-			jssp.__code     = oldcode;
-			jssp.__codename = oldfilename+'.js';
-			jssp.requirejsspflag = false;
-		}
+		// var flag=jssp.includeflag;
+		// jssp.includeflag=false;
+		// jssp.output(jssp.echocache); jssp.echocache='';//clear cache
+		// jssp.output(jssp.includecache); jssp.includecache='';//clear cache
+		// jssp.includeflag=flag;
 
 		jssp.htmlstack.push(jssp.html); jssp.html=[];
 		jssp.arraypush(push);
 
+		jssp.includeflag = true;
 		push();jssp.EvalCode(jssp,code);pop();
+		jssp.includeflag = false;
 
-		jssp.arraypush(pop);
-		jssp.arraypush(function(){ jssp.html = jssp.htmlstack.pop() });
+		jssp.arraypush(function()
+		{
+			pop();
+			jssp.output(jssp.includecache); jssp.includecache='';	//write after all block
+			jssp.html = jssp.htmlstack.pop();
+		});
+		jssp.runnextsingle();
+
+		jssp.includeflag = true;
+		jssp.html.splice(0,0,function()
+		{
+			jssp.includeflag = false;	//reset before next block
+		});
 
 		return jssp.module.exports;
+	}
+	jssp.requirejsspflag = false;
+	jssp.requirejssp = function(filename)
+	{
+
 	}
 	jssp.set_time_limit = function(timeout)
 	{
@@ -346,10 +321,25 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 			jssp.internalexit();
 		}
 	}
+	jssp.runnextsingle = function()
+	{
+		jssp.domainobj.run(function()
+		{
+			jssp.html.shift().call();
+		});
+	}
 
 	jssp.echocache = '';
 	jssp.output = function(str,isend)
 	{
+		if(jssp.includeflag)
+		{
+			jssp.includecache += str;
+			console.log('include',jssp.includeflag,jssp.includecache);
+			return;
+		}
+		console.log('echo',jssp.includeflag,str);
+
 		jssp.domainobj.run(function(){ 
 			if(isend) { if(str) { res.end(str) } else { res.end() } }
 			else      { if(str) { res.write(str) } }

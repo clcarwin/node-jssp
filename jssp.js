@@ -279,7 +279,7 @@ function VMStart()
 		catch(e)
 		{ jssp.internalexit(jssp.errorformat(e)) };
 
-		if(0==jssp.includecount) jssp.runnext();
+		if(!jssp.includeflag) jssp.runnext();
 		jssp = undefined;
 	}
 	
