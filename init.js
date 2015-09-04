@@ -52,18 +52,10 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 
 	jssp.echo = function(str)
 	{
-		if(Buffer.isBuffer(str))
-		{
-			jssp.output(jssp.echocache); jssp.echocache='';
-			jssp.output(str);
-		}
-		else
-		{
-			if(typeof str === "function") str = jssp.func2str(str);
-			if(typeof str !== "string")   str = ''+str;
-			//jssp.echocache += str;//disable cache for debug
-			jssp.output(str);
-		}
+		if(typeof str === "function") str = jssp.func2str(str); else
+		if(Buffer.isBuffer(str)) str = str; else
+		if(typeof str !== "string")   str = ''+str;
+		jssp.output(str);
 	}
 	jssp.exit = function(str)
 	{
@@ -71,7 +63,7 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 	}
 
 	jssp.includeflag  = false;
-	jssp.includecache = '';
+	jssp.includecache = false;
 	jssp.include = function(filename)
 	{
 		filename = path.normalize('/'+filename); //delete .. in filename
@@ -99,39 +91,22 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 			jssp.__codename  = oldfilename+'.js';
 		}
 
-		// var flag=jssp.includeflag;
-		// jssp.includeflag=false;
-		// jssp.output(jssp.echocache); jssp.echocache='';//clear cache
-		// jssp.output(jssp.includecache); jssp.includecache='';//clear cache
-		// jssp.includeflag=flag;
+		var flag = jssp.includecache;
+		var htmlpop;
 
-		jssp.htmlstack.push(jssp.html); jssp.html=[];
+		if(!flag) { jssp.htmlstack.push(jssp.html); jssp.html=[]; }
+		else { htmlpop = jssp.html.pop() }
+
 		jssp.arraypush(push);
-
 		jssp.includeflag = true;
 		push();jssp.EvalCode(jssp,code);pop();
 		jssp.includeflag = false;
+		jssp.arraypush(pop);
 
-		jssp.arraypush(function()
-		{
-			pop();
-			jssp.output(jssp.includecache); jssp.includecache='';	//write after all block
-			jssp.html = jssp.htmlstack.pop();
-		});
-		jssp.runnextsingle();
+		if(!flag) { jssp.arraypush(function(){ jssp.html = jssp.htmlstack.pop() }) }
+		else { jssp.arraypush(htmlpop) }
 
-		jssp.includeflag = true;
-		jssp.html.splice(0,0,function()
-		{
-			jssp.includeflag = false;	//reset before next block
-		});
-
-		return jssp.module.exports;
-	}
-	jssp.requirejsspflag = false;
-	jssp.requirejssp = function(filename)
-	{
-
+		jssp.includecache = true;
 	}
 	jssp.set_time_limit = function(timeout)
 	{
@@ -222,12 +197,11 @@ function JSSPInit(jssp,req,res,postobj,fileobj,code,filename)
 	jssp.require = function(name)
 	{
 		var obj;
-		if('.jssp'==path.extname(name)) obj = jssp.requirejssp(name);
 
 		if(name==='fs') obj = require('./fakefs.js')(jssp); else
 		if(name==='net') obj = require('./fakenet.js')(jssp); else
 		if(name==='http') obj = require('./fakehttp.js')(jssp); else
-		if(name==='child_process') obj = require('./fakecp.js')(jssp);
+		if(name==='child_process') obj = require('./fakecp.js')(jssp); else
 
 		if( (name==='string_decoder')||(name==='crypto')||(name==='os')||
 			(name==='path')||(name==='url')||(name==='util')||(name==='querystring') )
@@ -305,13 +279,13 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 	{
 		if(!jssp.running) return;
 		ticktime = undefined;
-		if(objectset.size>0){ jssp.output(jssp.echocache); jssp.echocache=''; return; }
+		if(objectset.size>0){ return; }
 
 		if(jssp.html.length)
 		{
 			jssp.domainobj.run(function()
 			{
-				do{ jssp.html.shift().call() }
+				do{ jssp.html.shift().call(); jssp.includecache=false; }
 				while( (0==objectset.size)&&(jssp.html.length>0) )
 				process.nextTick(jssp.runnext);
 			});
@@ -321,24 +295,18 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 			jssp.internalexit();
 		}
 	}
-	jssp.runnextsingle = function()
-	{
-		jssp.domainobj.run(function()
-		{
-			jssp.html.shift().call();
-		});
-	}
 
-	jssp.echocache = '';
 	jssp.output = function(str,isend)
 	{
-		if(jssp.includeflag)
+		if(jssp.includecache)
 		{
-			jssp.includecache += str;
-			console.log('include',jssp.includeflag,jssp.includecache);
+			var last = jssp.html.pop();
+			var fn = function(){ jssp.output(str) }
+			jssp.html.push(fn);
+			jssp.html.push(last);
+
 			return;
 		}
-		console.log('echo',jssp.includeflag,str);
 
 		jssp.domainobj.run(function(){ 
 			if(isend) { if(str) { res.end(str) } else { res.end() } }
@@ -354,7 +322,7 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 		if(maxtimer) clearTimeout(maxtimer);
 		objectset.forEach(function(obj){ obj.jsspclose() });
 
-		jssp.output(jssp.echocache); jssp.output(str,true); jssp.echocache='';
+		jssp.output(str,true);
 	}
 
 	var domainobj = require('domain').create();
