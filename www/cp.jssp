@@ -1,5 +1,5 @@
 <? var spawn = require('child_process').spawn;
-var ping = spawn('ping',['8.8.8.8']);
+var ping = spawn('ping',['114.114.114.114']);
 
 ping.stdout.on('data',function(data)
 {
