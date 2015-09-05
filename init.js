@@ -53,6 +53,7 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 	jssp.echo = function(str)
 	{
 		if(typeof str === "function") str = jssp.func2str(str); else
+		if(typeof str === "undefined") str = ''; else
 		if(Buffer.isBuffer(str)) str = str; else
 		if(typeof str !== "string")   str = ''+str;
 		jssp.output(str);
@@ -62,7 +63,6 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 		jssp.internalexit(str);
 	}
 
-	jssp.includeflag  = false;
 	jssp.includecache = false;
 	jssp.include = function(filename)
 	{
@@ -93,18 +93,18 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 
 		var flag = jssp.includecache;
 		var htmlpop;
-
-		if(!flag) { jssp.htmlstack.push(jssp.html); jssp.html=[]; }
-		else { htmlpop = jssp.html.pop() }
+		if(flag) { htmlpop = jssp.html.pop() }
+		else { jssp.htmlstack.push(jssp.html); jssp.html=[]; }
 
 		jssp.arraypush(push);
-		jssp.includeflag = true;
+		var oldrunnext = jssp.runnext;
+		jssp.runnext = function(){};
 		push();jssp.EvalCode(jssp,code);pop();
-		jssp.includeflag = false;
+		jssp.runnext = oldrunnext;
 		jssp.arraypush(pop);
 
-		if(!flag) { jssp.arraypush(function(){ jssp.html = jssp.htmlstack.pop() }) }
-		else { jssp.arraypush(htmlpop) }
+		if(flag) { jssp.arraypush(htmlpop) }
+		else { jssp.arraypush(function(){ jssp.html = jssp.htmlstack.pop() }) }
 
 		jssp.includecache = true;
 	}
@@ -187,8 +187,7 @@ function JSSPInit(jssp,req,res,postobj,fileobj,code,filename)
 		list.shift();list.pop(); //delete first and last line
 
 		//delete comment flag '//' before every line
-		for(var i=0;i<list.length;i++)
-			list[i] = list[i].substring(2);
+		for(var i=0;i<list.length;i++) list[i]=list[i].substring(2);
 
 		str = list.join('\n');
 		return str;
@@ -287,6 +286,7 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 			{
 				do{ jssp.html.shift().call(); jssp.includecache=false; }
 				while( (0==objectset.size)&&(jssp.html.length>0) )
+				jssp.output();	//flush cache
 				process.nextTick(jssp.runnext);
 			});
 		}
@@ -296,22 +296,28 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 		}
 	}
 
+	jssp.outputcache = '';
 	jssp.output = function(str,isend)
 	{
+		if(!str) str = '';
 		if(jssp.includecache)
 		{
 			var last = jssp.html.pop();
 			var fn = function(){ jssp.output(str) }
 			jssp.html.push(fn);
 			jssp.html.push(last);
-
-			return;
 		}
+		else
+		{
+			if( (str)&&(!isend) ) { jssp.outputcache += str;return; }
 
-		jssp.domainobj.run(function(){ 
-			if(isend) { if(str) { res.end(str) } else { res.end() } }
-			else      { if(str) { res.write(str) } }
-		});
+			str += jssp.outputcache;
+			jssp.domainobj.run(function()
+			{ 
+				if(isend) { if(str) { res.end(str) } else { res.end() } }
+				else      { if(str) { res.write(str) } }
+			});
+		}
 	}
 
 	jssp.internalexit = function(str)
