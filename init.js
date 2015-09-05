@@ -311,7 +311,7 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 		{
 			if( (str)&&(!isend) ) { jssp.outputcache += str;return; }
 
-			str += jssp.outputcache;
+			str+=jssp.outputcache; jssp.outputcache='';
 			jssp.domainobj.run(function()
 			{ 
 				if(isend) { if(str) { res.end(str) } else { res.end() } }
