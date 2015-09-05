@@ -8,7 +8,7 @@ var util = require('util');
 var querystring = require('querystring');
 
 var jsbase = __dirname + '/';
-var JSSPCoreInit   = require(jsbase + 'init.js');
+var JSSPCoreInit   = require(jsbase + 'core.js');
 var compilemachine = require(jsbase + 'compile.js');
 
 module.exports = new JSSPCore();
