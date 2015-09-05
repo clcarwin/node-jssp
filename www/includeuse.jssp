@@ -11,3 +11,8 @@
 1
 <? echo(2) ?>
 3
+<?
+	include('includeimpexports.jssp',function(exports)
+	{
+		echo('1+2='+exports.add(1,2));
+	});

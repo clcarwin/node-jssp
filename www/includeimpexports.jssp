@@ -1,0 +1,9 @@
+<?
+	module.exports = new Test();
+	function Test()
+	{
+		this.add = function(a,b)
+		{
+			return a+b;
+		}
+	}

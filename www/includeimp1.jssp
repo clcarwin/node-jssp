@@ -11,6 +11,10 @@
 	echo('    1-me\n');
 	include('includeimp2.jssp');
 	echo('    1-me2\n');
+	include('includeimpexports.jssp',function(exports)
+	{
+	echo('    1-me3 1+2='+exports.add(1,2)+'\n');
+	});
 
 ?>    0.5
 

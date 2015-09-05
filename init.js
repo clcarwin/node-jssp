@@ -64,7 +64,7 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 	}
 
 	jssp.includecache = false;
-	jssp.include = function(filename)
+	jssp.include = function(filename,cb)
 	{
 		filename = path.normalize('/'+filename); //delete .. in filename
 		filename = path.resolve(jssp.__dirname,'./'+filename);
@@ -97,11 +97,17 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 		else { jssp.htmlstack.push(jssp.html); jssp.html=[]; }
 
 		jssp.arraypush(push);
+		var module    = {"exports":{}};
+		var oldmodule = jssp.module;
+		jssp.module   = module;
+
 		var oldrunnext = jssp.runnext;
 		jssp.runnext = function(){};
 		push();jssp.EvalCode(jssp,code);pop();
 		jssp.runnext = oldrunnext;
+
 		jssp.arraypush(pop);
+		jssp.arraypush(function(){ if(cb) cb(module.exports); jssp.module=oldmodule; });
 
 		if(flag) { jssp.arraypush(htmlpop) }
 		else { jssp.arraypush(function(){ jssp.html = jssp.htmlstack.pop() }) }
