@@ -133,7 +133,10 @@ function JSSPCore()
 		{
 			try{ var stats = fs.statSync(filename) }catch(e){ cb(e);return; }
 			res.setHeader('Content-Length', stats.size);
-			fs.createReadStream(filename).on('error',function(){}).pipe(res);
+			var rs=fs.createReadStream(filename);
+                        rs.on('error',function(e){ cb(e) });
+                        rs.pipe(res);
+                        res.on('close',function(){ if(!rs.closed) rs.close() });
 		}
 		else
 		{
