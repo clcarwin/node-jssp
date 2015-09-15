@@ -129,21 +129,22 @@ function JSSPCore()
 			res.end(str.replace(dir,'...'));
 		}
 
-		if('.jssp'!=path.extname(filename))
-		{
-			try{ var stats = fs.statSync(filename) }catch(e){ cb(e);return; }
-			res.setHeader('Content-Length', stats.size);
-			var rs=fs.createReadStream(filename);
-                        rs.on('error',function(e){ cb(e) });
-                        rs.pipe(res);
-                        res.on('close',function(){ if(!rs.closed) rs.close() });
-		}
-		else
+		var ext = path.extname(filename);
+		if( ('.jssp'===ext)||(''===ext) )
 		{
 			var code = options.codebyname(filename);
 			if(code.stack) { cb(code);return; }	//code is an Error
 			var jssp = JSSPCoreInit(options,req,res,postobj,fileobj,code,filename);
 			process.emit('newpage',jssp,code);
+		}
+		else
+		{
+			try{ var stats = fs.statSync(filename) }catch(e){ cb(e);return; }
+			res.setHeader('Content-Length', stats.size);
+			var rs=fs.createReadStream(filename);
+			rs.on('error',function(e){ cb(e) });
+			rs.pipe(res);
+			res.on('close',function(){ if(!rs.closed) rs.close() });
 		}
 	}
 
