@@ -29,6 +29,8 @@ function JSSPCore()
 		options.SESSIONS  = {};
 		options.CODECACHE = {};
 		options.CODEMTIME = {};
+		options.ROUTER    = new Map();
+		options.ROUTER.set(404,'404.jssp');
 
 		var vmobj = CreateGlobalObject();
 		var code = VMStart.toString()+';VMStart();'
@@ -66,6 +68,10 @@ function JSSPCore()
 		server.setext = function(name,value)
 		{
 			options.EXT[name] = value;
+		}
+		server.setrouter = function(extname,jsspfile)
+		{
+			options.ROUTER.set(extname,jsspfile);
 		}
 		server.command = function(filename)
 		{
@@ -123,6 +129,15 @@ function JSSPCore()
 	{
 		var cb = function(err)
 		{
+			var handle = path.resolve(options.BASE,'./'+options.ROUTER.get(404));
+			if(handle!=filename)
+			{
+				try{ var stats = fs.statSync(handle) }catch(e){ stats=undefined; }
+				if(stats) postobj['filename']=fileobj['filename']=path.relative(options.BASE,filename);
+				if(stats) ServerFile(handle,options,req,res,postobj,fileobj);
+				if(stats) return;
+			}
+
 			if( (''+err).indexOf('ENOENT')>=0 ) res.write('<h1>404 Not Found</h1>');
 			var str = '<p>'+err+'</p>';
 			var dir = path.normalize(__dirname+path.sep+'..');
