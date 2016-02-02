@@ -316,9 +316,16 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 		else
 		{
 			//cache only when str is not undefined and isend not true and on objectset
-			if( (str)&&(!isend)&&(0==objectset.size) ) { jssp.outputcache += str;return; }
+			if( (str)&&(!isend)&&(0==objectset.size) )
+			{
+				if(Buffer.isBuffer(str)) jssp.outputcache = Buffer.concat([new Buffer(jssp.outputcache),str]);
+				else jssp.outputcache += str;
+				return;
+			}
 
-			str=jssp.outputcache+str; jssp.outputcache='';
+			if(Buffer.isBuffer(str)) str = Buffer.concat([new Buffer(jssp.outputcache),str]);
+			else str=jssp.outputcache+str;
+			jssp.outputcache='';
 			jssp.domainobj.run(function()
 			{ 
 				if(isend) { if(str) { res.end(str) } else { res.end() } }
