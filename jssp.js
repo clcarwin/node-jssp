@@ -180,7 +180,7 @@ function postparse(req,postbuffer,postobj,fileobj)
 {
 	var contenttype = req.headers['content-type'];
 
-	if('application/x-www-form-urlencoded'==contenttype)
+	if('application/x-www-form-urlencoded'==contenttype.slice(0,33))
 	{
 		var str = postbuffer.toString();
 		var obj = querystring.parse(str);

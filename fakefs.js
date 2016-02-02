@@ -20,7 +20,7 @@ module.exports = function(jssp)
 				(key=='symlink')||(key=='symlinkSync') )
 			{ a[1] = PathNormal(a[1]) }
 
-			fs[key].apply(null,a);
+			return fs[key].apply(null,a);
 		}
 	}
 
