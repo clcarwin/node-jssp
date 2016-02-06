@@ -291,14 +291,15 @@ function VMStart()
 
 
 		$$domainobj = jssp.domaincreate();
+		var syntaxerror = false;
 		try{
 			new jssp.vm.Script(code,{filename:__filename+'.js'});	//Check Syntax Error 
 			eval(code);
 		}
 		catch(e)
-		{ jssp.internalexit(jssp.errorformat(e)) };
+		{ syntaxerror=true; jssp.errorformat(e,jssp.internalexit); };
 
-		if(!jssp.includeflag) jssp.runnext();
+		if((!jssp.includeflag)&&(!syntaxerror)) jssp.runnext();
 		jssp = undefined;
 	}
 	

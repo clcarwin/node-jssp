@@ -3,6 +3,7 @@ var path = require('path');
 var util = require('util');
 var vm = require('vm');
 var fs = require('fs');
+var execFile = require('child_process').execFile;
 
 var jsbase = __dirname + '/';
 var compilemachine = require(jsbase + 'compile.js');
@@ -346,7 +347,7 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 	}
 
 	var domainobj = require('domain').create();
-	domainobj.on("error",function(e){ jssp.internalexit(jssp.errorformat(e)); });
+	domainobj.on("error",function(e){ jssp.errorformat(e,jssp.internalexit) });
 	jssp.domainobj = domainobj;
 
 	var  T = {};
@@ -375,19 +376,19 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 			maxtimer = undefined;
 			var str = 'EXCEED EXECTIME: ' + jssp.__codename + '\n';
 			objectset.forEach(function(obj){ str+=util.inspect(obj,{depth:0}) });
-			jssp.internalexit(jssp.errorformat(str));
+			jssp.errorformat(e,jssp.internalexit);
 		},timeout);
 	}
 	jssp.setmaxtimer(options.EXECTIME);
 
-	jssp.errorformat = function(e)
+	jssp.errorformat = function(e,cb)
 	{
-		return codeerrorformat(e,jssp.__code,jssp.__codename);
+		codeerrorformat(e,jssp.__code,jssp.__codename,cb);
 	}
 	jssp.domaincreate = function()
 	{
 		var d = require('domain').create();
-		d.on("error",function(e){ jssp.internalexit(jssp.errorformat(e)); });
+		d.on("error",function(e){ jssp.errorformat(e,jssp.internalexit) });
 		return d;
 	}
 	jssp.init = function()
@@ -400,38 +401,50 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 	return jssp;	
 }
 
-function codeerrorformat(e,code,codename)
+function codeerrorformat(e,code,codename,cb)
 {
-	var str;
-	if(e.stack)
-	{ 
-		str = e.stack;
-		str = 'ERROR IN FILE: ' + codename + '\n\n' + str;
-	}
-	else str = e.toString();
-
-	var re = new RegExp('evalmachine.<anonymous>','g');
-	str = str.replace(re,'evalmachine.anonymous');
-	var re = new RegExp('<anonymous>','g');
-	str = str.replace(re,codename);
-
-	//format code
-	var c = code;
-	var list = c.split('\n');
-	for(var i=0;i<list.length;i++)
+	checksyntaxerror(e,code,codename,function(str)
 	{
-		var line = ('00000'+(i+1)).slice(-4) + ' ';
-		list[i] = line + list[i];
-	}
-	c = list.join('\n');
-	str = str + '\n\n' 
-	     +'------------CODE BEGIN------------' 
-	     +'\n'+ c + '\n'
-	     +'------------CODE END------------';
+		//format code
+		var c = code;
+		var list = c.split('\n');
+		for(var i=0;i<list.length;i++)
+		{
+			var line = ('00000'+(i+1)).slice(-4) + ' ';
+			list[i] = line + list[i];
+		}
+		c = list.join('\n');
+		str = str + '\n\n' 
+		     +'------------CODE BEGIN------------' 
+		     +'\n'+ c + '\n'
+		     +'------------CODE END------------';
 
-	str = str.replace(/\&/g,'&amp');
-	str = str.replace(/\</g,'&lt;');
-	return '<br><pre>\n'+str+'</pre>';
+		str = str.replace(/\&/g,'&amp');
+		str = str.replace(/\</g,'&lt;');
+		str = '<br><pre>\n'+str+'</pre>';
+
+		cb(str);
+	});
+}
+
+function checksyntaxerror(e,code,codename,cb)
+{
+	if(e instanceof SyntaxError)
+	{
+		execFile('node', ['-e',code], function(err, stdout, stderr){
+			var str = stderr.toString();
+			str = str.replace('[eval]',codename);
+			cb(str);
+		});
+	}
+	else
+	{
+		if(e.stack) str = e.stack;
+		else str = e.toString();
+		var re = new RegExp(' <anonymous>\:','g');
+		str = str.replace(re,'\n\t'+codename+':');
+		cb(str);
+	}
 }
 
 function splitsessionid(cookie)
