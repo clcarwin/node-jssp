@@ -104,7 +104,11 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 
 		var oldrunnext = jssp.runnext;
 		jssp.runnext = function(){};
-		push();jssp.EvalCode(jssp,code);pop();
+		//push();jssp.EvalCode(jssp,code);pop();
+		push();
+		var htmlpage = new vm.runInNewContext(code,{"console":console});
+		htmlpage(jssp);
+		pop();
 		jssp.runnext = oldrunnext;
 
 		jssp.arraypush(pop);
@@ -184,7 +188,8 @@ function JSSPInit(jssp,req,res,postobj,fileobj,code,filename)
 {
 	jssp.arraypush = function(cb)
 	{
-		jssp.html.push(cb);
+		if(Array.isArray(cb)) Array.prototype.push.apply(jssp.html,cb);
+		else jssp.html.push(cb);
 	}
 	jssp.func2str = function(cb)
 	{
@@ -376,7 +381,7 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 			maxtimer = undefined;
 			var str = 'EXCEED EXECTIME: ' + jssp.__codename + '\n';
 			objectset.forEach(function(obj){ str+=util.inspect(obj,{depth:0}) });
-			jssp.errorformat(e,jssp.internalexit);
+			jssp.errorformat(str,jssp.internalexit);
 		},timeout);
 	}
 	jssp.setmaxtimer(options.EXECTIME);

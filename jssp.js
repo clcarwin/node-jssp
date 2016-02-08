@@ -28,30 +28,34 @@ function JSSPCore()
 		options.EXT       = {};
 		options.SESSIONS  = {};
 		options.CODECACHE = {};
-		options.CODEMTIME = {};
+		options.CODEFUNC  = {};
 		options.ROUTER    = new Map();
 		options.ROUTER.set(404,'404.jssp');
-
-		var vmobj = CreateGlobalObject();
-		var code = VMStart.toString()+';VMStart();'
-		vm.runInNewContext(code,vmobj);
-		Object.freeze(vmobj);	//disable to define global variable
 
 		for(var key in process.env) options.ENV[key] = process.env[key];
 		options.codebyname = function(filename)
 		{
-			var code; var stats;
-			try{ stats = fs.statSync(filename) }catch(e){ return e; }
-			var time = options.CODEMTIME[filename];
-			if(time!==stats.mtime.getTime())
+			var watchcb = function(error_event,undefined_filename)
 			{
-				try{ code = fs.readFileSync(filename,{'encoding':'utf8'}) }
-				catch(e){ return e; }
+				delete options.CODECACHE[filename];
+				delete options.CODEFUNC[filename];
+				watcher.close();
+			};
+
+			var code = options.CODECACHE[filename];
+			if(!code)
+			{
+				var stats;
+				try{ code = fs.readFileSync(filename,{'encoding':'utf8'}) }catch(e){ return e; }
+				try{ stats = fs.statSync(filename) }catch(e){ return e; }
 				code = compilemachine(code);
 				options.CODECACHE[filename] = code;
-				options.CODEMTIME[filename] = stats.mtime.getTime();
+				var watcher = fs.watch(filename);
+				watcher.on('error',watchcb);
+				watcher.on('change',watchcb);
 			}
-			else { code = options.CODECACHE[filename]; }
+
+			//fs.writeFileSync(filename+'.js',code);//debug
 			return code;
 		}
 
@@ -150,7 +154,21 @@ function JSSPCore()
 			var code = options.codebyname(filename);
 			if(code.stack) { cb(code);return; }	//code is an Error
 			var jssp = JSSPCoreInit(options,req,res,postobj,fileobj,code,filename);
-			process.emit('newpage',jssp,code);
+
+			var syntaxerror = false;
+			try{
+				var htmlpagecache = options.CODEFUNC[filename];
+				var htmlpage;
+				if(htmlpagecache) htmlpage = htmlpagecache;
+				else htmlpage = new vm.runInNewContext(code,{"console":console},{filename:filename+'.js'});
+				htmlpage(jssp);
+
+				if(!htmlpagecache) options.CODEFUNC[filename] = htmlpage;
+			}
+			catch(e)
+			{ syntaxerror=true; jssp.errorformat(e,jssp.internalexit); };
+
+			if((!jssp.includeflag)&&(!syntaxerror)) jssp.runnext();
 		}
 		else
 		{
@@ -161,18 +179,6 @@ function JSSPCore()
 			rs.pipe(res);
 			res.on('close',function(){ if(!rs.closed) rs.close() });
 		}
-	}
-
-	function CreateGlobalObject()
-	{
-		function vmObject()
-		{
-			this.process = process;//use to emit 'newpage' and 'include'
-			this.console = console;//use when debug
-			this.JSSPCoreInit = JSSPCoreInit;
-		}
-
-		return new vmObject();
 	}
 }
 
@@ -237,84 +243,6 @@ function postparse(req,postbuffer,postobj,fileobj)
 			}
 		}
 	}
-}
-
-
-function VMStart()
-{
-	function EvalCode(jssp,code)
-	{
-		var process   = undefined;
-		var JSSPCoreInit = undefined;
-		var console   = undefined;
-		var VMStart   = undefined;
-		var EvalCode  = undefined;
-
-		var __filename= jssp.__filename;
-		var __FILE__  = jssp.__filename;
-		var __dirname = jssp.__dirname;
-		var __DIR__   = jssp.__dirname;
-		var __code    = jssp.__code;
-		var __CODE__  = jssp.__code;
-
-		var require        = jssp.require;
-		var Buffer         = jssp.Buffer;
-		var setTimeout     = jssp.setTimeout;
-		var setInterval    = jssp.setInterval;
-		var clearTimeout   = jssp.clearTimeout;
-		var clearInterval  = jssp.clearInterval;
-		var render         = jssp.render;
-		var module         = jssp.module;
-		var exports        = jssp.module.exports;
-
-		var $$arraypush    = jssp.arraypush;
-		var $$tick         = jssp.tick;
-		var $$T      = jssp.T;        var T      = jssp.T;
-		var $_EXT    = jssp.EXT;      var EXT    = jssp.EXT;
-
-		var $_SESSION=undefined;      var SESSION=undefined;
-		var $_GET    = jssp.$_GET;    var GET    = jssp.$_GET;
-		var $_POST   = jssp.$_POST;	  var POST   = jssp.$_POST;
-		var $_FILE   = jssp.$_FILE;   var FILE   = jssp.$_FILE;
-		var $_SERVER = jssp.$_SERVER; var SERVER = jssp.$_SERVER;
-		var $_ENV    = jssp.$_ENV;    var ENV    = jssp.$_ENV;
-		var echo               = jssp.echo;
-		var exit               = jssp.exit;
-		var include            = jssp.include;
-		var set_time_limit     = jssp.set_time_limit;
-		var header             = jssp.header;
-		var headers_sent       = jssp.headers_sent;
-		var session_start      = jssp.session_start;
-		var session_id         = jssp.session_id;
-		var session_destroy    = jssp.session_destroy;
-		var session_unset      = jssp.session_unset;
-
-
-		$$domainobj = jssp.domaincreate();
-		var syntaxerror = false;
-		try{
-			new jssp.vm.Script(code,{filename:__filename+'.js'});	//Check Syntax Error 
-			eval(code);
-		}
-		catch(e)
-		{ syntaxerror=true; jssp.errorformat(e,jssp.internalexit); };
-
-		if((!jssp.includeflag)&&(!syntaxerror)) jssp.runnext();
-		jssp = undefined;
-	}
-	
-	var JSSPCoreInit = this.JSSPCoreInit;
-	var process      = this.process;
-	var console      = this.console;
-	this.VMStart     = undefined;
-	for(var key in this) delete this[key];
-	Object.freeze(this);
-
-	process.on('newpage',function(jssp,code)
-	{
-		jssp.EvalCode = EvalCode;
-		EvalCode(jssp,code);
-	});
 }
 
 
