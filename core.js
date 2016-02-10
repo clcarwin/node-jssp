@@ -53,7 +53,17 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 
 	jssp.echo = function(str)
 	{
-		if(typeof str === "function") str = jssp.func2str(str); else
+		if(typeof str === "function")
+		{
+			var fn = str;
+			str = fn.strcache;
+			if(!str)
+			{
+				str = jssp.func2str(fn);
+				fn.strcache = str;
+			}
+		}
+		else
 		if(typeof str === "undefined") str = ''; else
 		if(Buffer.isBuffer(str)) str = str; else
 		if(typeof str !== "string")   str = ''+str;

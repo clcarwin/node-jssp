@@ -1,5 +1,6 @@
 module.exports = tplmachine;
 
+var echofncount = 0;
 function tplmachine(html)
 {
 	var str = '';
@@ -79,9 +80,11 @@ function tplmachine(html)
 		}
 	}
 
+	var echofn = '';
 	function tplpushtxt(str)
 	{
 		if(!str) return;
+
 		if( (str.indexOf('\\')<0)&&(str.indexOf("'")<0)&&(str.indexOf('\n')<0) )
 		{
 			str = "echo('"+str+"');";
@@ -89,8 +92,12 @@ function tplmachine(html)
 		else
 		{
 			str =  '//'+str.replace(/\n/g,'\n//');
-			str = 'echo(function(){\n'+str+'\n});';
+
+			echofncount++;
+			echofn += 'var $$F_'+echofncount+'='+'function(){\n'+str+'\n};\n';
+			str = 'echo('+'$$F_'+echofncount+');\n';
 		}
+
 		tpllist.push(str);
 	}
 
@@ -128,7 +135,7 @@ function tplmachine(html)
 	for(var i=0;i<html.length;i++) put(html[i]);
 	tplpushtxt(str); tplend();
 
-	return result;
+	return [result,echofn];
 }
 
 

@@ -119,10 +119,14 @@ function complemachine(html)
 		}
 	}
 
+	var echofn = '';
 	function pushhtml(str)
 	{
 		if(!str) return;
-		str = tplmachine(str);
+		var tpl = tplmachine(str);
+		echofn += tpl[1];
+		str = tpl[0];
+
 		result.push('function(){\n' + str + '\n},\n');
 	}
 
@@ -143,7 +147,7 @@ function complemachine(html)
 	if(js.indexOf('session_start')>=0)
 	if(sessionmachine(js)) js = '$_SESSION=SESSION=session_start();\n\n' + js;
 
-	js = func2str(htmlpageheader) + js + '\n\n};\n\n$$htmlpage;';
+	js = echofn + func2str(htmlpageheader) + js + '\n\n};\n\n$$htmlpage;';
 
 	return js;
 }
