@@ -29,8 +29,6 @@ function JSSPCore()
 		options.SESSIONS  = {};
 		options.CODECACHE = {};
 		options.CODEFUNC  = {};
-		options.ROUTER    = new Map();
-		options.ROUTER.set(404,'404.jssp');
 
 		for(var key in process.env) options.ENV[key] = process.env[key];
 		options.codebyname = function(filename)
@@ -72,10 +70,6 @@ function JSSPCore()
 		server.setext = function(name,value)
 		{
 			options.EXT[name] = value;
-		}
-		server.setrouter = function(extname,jsspfile)
-		{
-			options.ROUTER.set(extname,jsspfile);
 		}
 		server.command = function(filename)
 		{
@@ -133,15 +127,6 @@ function JSSPCore()
 	{
 		var cb = function(err)
 		{
-			var handle = path.resolve(options.BASE,'./'+options.ROUTER.get(404));
-			if(handle!=filename)
-			{
-				try{ var stats = fs.statSync(handle) }catch(e){ stats=undefined; }
-				if(stats) postobj['filename']=fileobj['filename']=path.relative(options.BASE,filename);
-				if(stats) ServerFile(handle,options,req,res,postobj,fileobj);
-				if(stats) return;
-			}
-
 			if( (''+err).indexOf('ENOENT')>=0 ) res.write('<h1>404 Not Found</h1>');
 			var str = '<p>'+err+'</p>';
 			var dir = path.normalize(__dirname+path.sep+'..');
@@ -149,13 +134,12 @@ function JSSPCore()
 		}
 
 		var ext = path.extname(filename);
-		if( ('.jssp'===ext)||(''===ext) )
+		if('.jssp'===ext)
 		{
 			var code = options.codebyname(filename);
-			if(code.stack) { cb(code);return; }	//code is an Error
-			var jssp = JSSPCoreInit(options,req,res,postobj,fileobj,code,filename);
+			if(code.stack) { return cb(code); }	//code is an Error
 
-			var syntaxerror = false;
+			var jssp = JSSPCoreInit(options,req,res,postobj,fileobj,code,filename);
 			try{
 				var htmlpagecache = options.CODEFUNC[filename];
 				var htmlpage;
@@ -166,18 +150,15 @@ function JSSPCore()
 				if(!htmlpagecache) options.CODEFUNC[filename] = htmlpage;
 			}
 			catch(e)
-			{ syntaxerror=true; jssp.errorformat(e,jssp.internalexit); };
+			{ jssp.errorformat(e,jssp.internalexit); jssp=undefined; };
 
-			if((!jssp.includeflag)&&(!syntaxerror)) jssp.runnext();
+			if(jssp) jssp.runnext();
 		}
 		else
 		{
-			try{ var stats = fs.statSync(filename) }catch(e){ cb(e);return; }
-			res.setHeader('Content-Length', stats.size);
-			var rs=fs.createReadStream(filename);
-			rs.on('error',function(e){ cb(e) });
-			rs.pipe(res);
-			res.on('close',function(){ if(!rs.closed) rs.close() });
+			var defaultname = path.resolve(options.BASE,'./_default.jssp');
+			postobj['REQUEST']=path.relative(options.BASE,filename);
+			ServerFile(defaultname,options,req,res,postobj,fileobj);
 		}
 	}
 }

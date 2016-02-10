@@ -1,0 +1,29 @@
+<?
+	//if ext not .jssp, all jump to this _default.jssp
+	//original request in POST['REQUEST']
+
+	//echo(POST['REQUEST']);
+
+	var path = require('path');
+	var fs   = require('fs');
+
+	var filename = POST['REQUEST'];
+	var ext = path.extname(filename);
+	var extlist = ['.txt','.png'];
+	if(extlist.indexOf(ext)>=0)
+	{
+		fs.readFile(__dirname + '/' + filename, function(err,data)
+		{
+			if(err)
+			{
+				echo('<h1>404 Not Found</h1>');
+				echo('<p>'+SERVER['HTTP_HOST']+'/'+filename+'</p>');
+				exit();
+			}
+			else echo(data);
+		});
+	}
+	else
+	{
+		echo(POST['REQUEST']);
+	}
