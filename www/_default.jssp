@@ -6,8 +6,11 @@
 
 	var path = require('path');
 	var fs   = require('fs');
+	var url  = require('url');
 
-	var filename = POST['REQUEST'];
+	var urlobj = url.parse(POST['REQUEST']);
+	var filename = urlobj.pathname;
+
 	var ext = path.extname(filename);
 	var extlist = ['.txt','.png'];
 	if(extlist.indexOf(ext)>=0)

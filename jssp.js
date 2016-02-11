@@ -91,11 +91,11 @@ function JSSPCore()
 
 	function RenderPage(options,req,res)
 	{
-		var urlparse = url.parse(req.url,true);
-		var filename = urlparse.pathname;
-		if( (!filename)||('/'==filename) ) filename = 'index.jssp';
-		filename = path.normalize('/'+filename); //delete .. in filename
-		filename = path.resolve(options.BASE,'./'+filename);
+		var obj = url.parse(req.url,true);
+		obj.pathname = path.normalize(obj.pathname);//delete .. in pathname
+		if('/'==obj.pathname) obj.pathname='index.jssp';
+		req.url = url.format(obj);
+		filename = path.resolve(options.BASE,'./' + obj.pathname);	//full path
 
 		if('POST'==req.method)
 		{
@@ -158,7 +158,7 @@ function JSSPCore()
 		else
 		{
 			var defaultname = path.resolve(options.BASE,options.DEFAULT);
-			postobj['REQUEST']=path.relative(options.BASE,filename);
+			postobj['REQUEST']=req.url;
 			ServerFile(defaultname,options,req,res,postobj,fileobj);
 		}
 	}
