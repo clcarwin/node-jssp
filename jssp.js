@@ -24,6 +24,7 @@ function JSSPCore()
 		options.EXECTIME  = 60*1000;
 		options.TICKTIME  = 1*1000;
 		options.POSTSIZE  = 128*1024*1024;
+		options.DEFAULT   = '_default.jssp';
 		options.ENV       = {};
 		options.EXT       = {};
 		options.SESSIONS  = {};
@@ -156,7 +157,7 @@ function JSSPCore()
 		}
 		else
 		{
-			var defaultname = path.resolve(options.BASE,'./_default.jssp');
+			var defaultname = path.resolve(options.BASE,options.DEFAULT);
 			postobj['REQUEST']=path.relative(options.BASE,filename);
 			ServerFile(defaultname,options,req,res,postobj,fileobj);
 		}
