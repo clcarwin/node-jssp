@@ -168,6 +168,8 @@ function postparse(req,postbuffer,postobj,fileobj)
 {
 	var contenttype = req.headers['content-type'];
 
+	if(!contenttype) {}
+	else
 	if('application/x-www-form-urlencoded'==contenttype.slice(0,33))
 	{
 		var str = postbuffer.toString();

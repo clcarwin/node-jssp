@@ -8,7 +8,7 @@ module.exports = function(jssp)
 		{
 			var child = cp[key].apply(null,arguments);
 			child.jsspclose = child.kill;
-			child.on('exit',function(){ jssp.objectdel(child);});
+			child.on('exit',function(){ process.nextTick(function(){jssp.objectdel(child)}) });
 			jssp.objectadd(child);
 			return child;
 		}
