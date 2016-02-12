@@ -94,8 +94,10 @@ function tplmachine(html)
 			str =  '//'+str.replace(/\n/g,'\n//');
 
 			echofncount++;
-			echofn += 'var $$F_'+echofncount+'='+'function(){\n'+str+'\n};\n';
-			str = 'echo('+'$$F_'+echofncount+');\n';
+			var FN = '$$F_' + echofncount;
+			echofn += 'var ' + FN +'; ';
+			str = FN + '?' + FN + ':' + FN + '=function(){\n' + str + '\n};' +
+				  'echo(' + FN + ');\n';
 		}
 
 		tpllist.push(str);
@@ -123,7 +125,7 @@ function tplmachine(html)
 			js += 'for(var $$i=0;$$i<Math.min('+arrlist.join('.length,')+');$$i++)\n{\n'
 				+ '$$T.INDEX=$$i\n';
 			js += tpllist.join('');
-			js += '\n}';
+			js += '\n}\n';
 		}
 		else { js = tpllist[0]; }
 		tpllist.splice(0, tpllist.length);

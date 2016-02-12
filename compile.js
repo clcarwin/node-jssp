@@ -127,7 +127,7 @@ function complemachine(html)
 		echofn += tpl[1];
 		str = tpl[0];
 
-		result.push('function(){\n' + str + '\n},\n');
+		result.push('function(){\n' + str + '},\n');
 	}
 
 	function pushjs(str)
@@ -142,7 +142,7 @@ function complemachine(html)
 	if(s=='l2') pushjs(str); else pushhtml(str);
 
 	var js = result.join('');
-	js = '$$arraypush([' + js + ']);'
+	js = '$$arraypush([' + js + ']);    //arraypush'
 
 	if(js.indexOf('session_start')>=0)
 	if(sessionmachine(js)) js = '$_SESSION=SESSION=session_start();\n\n' + js;
