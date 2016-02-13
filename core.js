@@ -458,6 +458,8 @@ function checksyntaxerror(e,code,codename,cb)
 		else str = e.toString();
 		var re = new RegExp(' <anonymous>\:','g');
 		str = str.replace(re,'\n\t'+codename+':');
+		re = new RegExp('evalmachine\.<anonymous>\:','g');
+		str = str.replace(re,'\n\t'+codename+':');
 		cb(str);
 	}
 }

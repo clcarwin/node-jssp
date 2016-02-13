@@ -114,7 +114,7 @@ function complemachine(html)
 			case 'r2':
 				if('>'==c) { str+='/*?>*/';pushjs(str);str='';s='idle'; } else
 				if('\\'==c) { stack.push('l2');str+=c;s='slash'; } else
-				{ str+='%'+c; s='l2'; }
+				{ str+='?'+c; s='l2'; }
 			break;
 		}
 	}
