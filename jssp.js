@@ -30,6 +30,7 @@ function JSSPCore()
 		options.SESSIONS  = {};
 		options.CODECACHE = {};
 		options.CODEFUNC  = {};
+		options.GLOBAL    = {};
 
 		for(var key in process.env) options.ENV[key] = process.env[key];
 		options.codebyname = function(filename)

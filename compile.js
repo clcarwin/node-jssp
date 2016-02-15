@@ -37,6 +37,7 @@ function htmlpageheader()
 // 	var $_FILE      = FILE      = jssp.$_FILE;
 // 	var $_SERVER    = SERVER    = jssp.$_SERVER;
 // 	var $_ENV       = ENV       = jssp.$_ENV;
+//  var GLOBAL      = global    = jssp.GLOBAL;
 // 	var echo               = jssp.echo;
 // 	var exit               = jssp.exit;
 // 	var include            = jssp.include;
@@ -73,7 +74,7 @@ function complemachine(html)
 	var result = [];
 
 	var s = 'idle';	//idle l1 l2 r2 r1 //l1=< l2=<? r2=? r1=?>
-					//l2q1 l2q2 slash
+					//slash
 	var stack = [];
 
 	function put(c)
@@ -95,26 +96,14 @@ function complemachine(html)
 				{ str+='<'+c;s='idle'; }
 			break;
 			case 'l2':
-				if("'"==c) { str+=c;s='l2q1'; } else
-				if('"'==c) { str+=c;s='l2q2'; } else
 				if('\\'==c) { stack.push(s);str+=c;s='slash'; } else
 				if('?'==c) { s='r2'; } else
-				{ str+=c; }
-			break;
-			case 'l2q1':
-				if('\\'==c) { stack.push(s);str+=c;s='slash'; } else
-				if("'"==c) { str+=c;s='l2'; } else
-				{ str+=c; }
-			break;
-			case 'l2q2':
-				if('\\'==c) { stack.push(s);str+=c;s='slash'; } else
-				if('"'==c) { str+=c;s='l2'; } else
 				{ str+=c; }
 			break;
 			case 'r2':
 				if('>'==c) { str+='/*?>*/';pushjs(str);str='';s='idle'; } else
 				if('\\'==c) { stack.push('l2');str+=c;s='slash'; } else
-				{ str+='?'+c;s='l2';if("'"==c)s='l2q1';if('"'==c)s='l2q2'; }
+				{ str+='?'+c;s='l2'; }
 			break;
 		}
 	}
@@ -133,8 +122,8 @@ function complemachine(html)
 	function pushjs(str)
 	{
 		if(!str) return;
-		str = whileformachine(str);
 
+		str = whileformachine(str);
 		result.push('function(){\n' + str + '\n},\n');
 	}
 

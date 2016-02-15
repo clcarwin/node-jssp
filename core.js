@@ -278,6 +278,7 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 	jssp.EXT             = options.EXT;
 	jssp.SESSIONS        = options.SESSIONS;
 	jssp.codebyname      = options.codebyname;
+	jssp.GLOBAL          = options.GLOBAL;
 
 	jssp.html = [];
 	jssp.htmlstack = [];
