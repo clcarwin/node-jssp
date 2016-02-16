@@ -37,6 +37,7 @@ function htmlpageheader()
 // 	var $_FILE      = FILE      = jssp.$_FILE;
 // 	var $_SERVER    = SERVER    = jssp.$_SERVER;
 // 	var $_ENV       = ENV       = jssp.$_ENV;
+//  var $_COOKIE    = COOKIE    = jssp.$_COOKIE;
 //  var GLOBAL      = global    = jssp.GLOBAL;
 // 	var echo               = jssp.echo;
 // 	var exit               = jssp.exit;

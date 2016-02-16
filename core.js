@@ -42,14 +42,29 @@ function getenvobj(req)
 	return env;
 }
 
+function parseCookies(request)
+{
+    var obj = {};
+    var rc  = request.headers.cookie;
+
+    rc && rc.split(';').forEach(function( cookie )
+    {
+        var parts = cookie.split('=');
+        obj[parts.shift().trim()] = decodeURI(parts.join('='));
+    });
+
+    return obj;
+}
+
 function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 {
-	var urlobj  = url.parse(req.url,true);
-	jssp.$_GET  = urlobj.query;
-	jssp.$_POST = postobj;
-	jssp.$_FILE = fileobj;
+	var urlobj    = url.parse(req.url,true);
+	jssp.$_GET    = urlobj.query;
+	jssp.$_POST   = postobj;
+	jssp.$_FILE   = fileobj;
 	jssp.$_SERVER = getenvobj(req);
-	jssp.$_ENV = jssp.ENV;
+	jssp.$_ENV    = jssp.ENV;
+	jssp.$_COOKIE = parseCookies(req);
 
 	jssp.echo = function(str)
 	{
@@ -142,6 +157,14 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 	{
 		return res.headersSent;
 	}
+	jssp.setcookie = function(name, value, path)
+	{
+		var cookie = name + '=' + value + '; ';
+		if(!path) path = '/';
+		cookie += 'path=' + path + '; ';
+
+		res.setHeader('Set-Cookie',[cookie]);
+	}
 
 	var ssesid;
 	jssp.internal_session_newid = function()
@@ -155,14 +178,14 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 			if(process.hrtime(obj.time)[0]>24*60) jssp.session_destroy();
 		},5*60*1000);
 
-		res.setHeader('Set-Cookie','JSSPSESSID='+obj.ssesid);
+		jssp.setcookie('JSSPSESSID',obj.ssesid);
 
 		jssp.SESSIONS[obj.ssesid] = obj;
 		return obj.ssesid;
 	}
 	jssp.session_start = function()
 	{
-		if(!ssesid) ssesid = splitsessionid(req.headers['cookie']);
+		if(!ssesid) ssesid = jssp.$_COOKIE['JSSPSESSID'];
 		if(!ssesid) ssesid = jssp.internal_session_newid();
 
 		obj = jssp.SESSIONS[ssesid];
@@ -463,18 +486,4 @@ function checksyntaxerror(e,code,codename,cb)
 		str = str.replace(re,'\n\t'+codename+':');
 		cb(str);
 	}
-}
-
-function splitsessionid(cookie)
-{
-	cookie = cookie + ';';
-	var id  = undefined;
-	var index  = cookie.indexOf('JSSPSESSID=');
-	if(index>=0) 
-	{
-		id = cookie.slice(index+11);
-		index  = id.indexOf(';');
-		id = id.slice(0,index);
-	}
-	return id;
 }
