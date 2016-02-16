@@ -1,6 +1,6 @@
 {
   "name": "jssp",
-  "version": "1.1.1",
+  "version": "2.0.0",
   "description": "JavaScript Server Page on nodejs. Template engine and embedding nodejs code in html.",
   "main": "jssp.js",
   "repository": {
