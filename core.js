@@ -131,7 +131,7 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 		jssp.runnext = function(){};
 		//push();jssp.EvalCode(jssp,code);pop();
 		push();
-		var htmlpage = new vm.runInNewContext(code,{"console":console});
+		var htmlpage = jssp.options.codetofunc(code,filename);
 		htmlpage(jssp);
 		pop();
 		jssp.runnext = oldrunnext;
@@ -302,6 +302,7 @@ function JSSPCoreInit(options,req,res,postobj,fileobj,code,filename)
 	jssp.SESSIONS        = options.SESSIONS;
 	jssp.codebyname      = options.codebyname;
 	jssp.GLOBAL          = options.GLOBAL;
+	jssp.options         = options;
 
 	jssp.html = [];
 	jssp.htmlstack = [];

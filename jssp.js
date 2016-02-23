@@ -31,6 +31,7 @@ function JSSPCore()
 		options.CODECACHE = {};
 		options.CODEFUNC  = {};
 		options.GLOBAL    = {};
+		options.CONTEXT   = vm.createContext({});
 
 		for(var key in process.env) options.ENV[key] = process.env[key];
 		options.codebyname = function(filename)
@@ -57,6 +58,16 @@ function JSSPCore()
 
 			//fs.writeFileSync(filename+'.js',code);//debug
 			return code;
+		}
+		options.codetofunc = function(code,filename)
+		{
+			var htmlpage = options.CODEFUNC[filename];
+			if(htmlpage) return htmlpage;
+
+			var script = new vm.Script(code, {"filename":filename});
+			var htmlpage = script.runInContext(options.CONTEXT);
+			options.CODEFUNC[filename] = htmlpage;
+			return htmlpage;
 		}
 
 		var server = http.createServer(function (req, res) 
@@ -143,13 +154,8 @@ function JSSPCore()
 
 			var jssp = JSSPCoreInit(options,req,res,postobj,fileobj,code,filename);
 			try{
-				var htmlpagecache = options.CODEFUNC[filename];
-				var htmlpage;
-				if(htmlpagecache) htmlpage = htmlpagecache;
-				else htmlpage = new vm.runInNewContext(code,{"console":console},{filename:filename+'.js'});
+				var htmlpage = options.codetofunc(code,filename);
 				htmlpage(jssp);
-
-				if(!htmlpagecache) options.CODEFUNC[filename] = htmlpage;
 			}
 			catch(e)
 			{ jssp.errorformat(e,jssp.internalexit); jssp=undefined; };
