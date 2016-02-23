@@ -168,7 +168,9 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 
 	jssp.internal_session_newid = function()
 	{
-		return process.hrtime().join('-')+'-'+Math.random()*1000000000000000000;
+		var sessid = process.hrtime().join('-')+'-'+Math.random()*1000000000000000000;
+		jssp.setcookie('JSSPSESSID',sessid);
+		return sessid;
 	}
 	jssp.session_start = function()
 	{
@@ -176,24 +178,9 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 		if(!jssp.sessid) jssp.sessid = jssp.internal_session_newid();
 
 		var obj = jssp.SESSIONS[jssp.sessid];
-		if(!obj) obj = jssp.tempsession;
-		if(!obj) obj = {"sessobj":{},"sessid":jssp.sessid};
-
-		obj.time = process.hrtime();
-		jssp.tempsession = obj;
-
-		return obj.sessobj;
-	}
-	jssp.session_id = function()
-	{
-		return jssp.sessid;
-	}
-	jssp.session_save = function()	//call after login
-	{
-		if(!jssp.tempsession) return;
-		jssp.sessid = jssp.internal_session_newid();
-		jssp.SESSIONS[jssp.sessid] = jssp.tempsession;
-		jssp.setcookie('JSSPSESSID',jssp.sessid);
+		if(!obj) jssp.sessid = jssp.internal_session_newid();
+		if(!obj) jssp.SESSIONS[jssp.sessid] = {"sessobj":{},"sessid":jssp.sessid,"time":process.hrtime()};
+		if(!obj) obj = jssp.SESSIONS[jssp.sessid];
 
 		if(!jssp.options.TIMER)
 		jssp.options.TIMER = setInterval(function()
@@ -208,6 +195,12 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 			if(0==count) clearInterval(jssp.options.TIMER);
 			if(0==count) jssp.options.TIMER = undefined;
 		},300*1000);
+
+		return obj.sessobj;
+	}
+	jssp.session_id = function()
+	{
+		return jssp.sessid;
 	}
 	jssp.session_destroy = function()
 	{

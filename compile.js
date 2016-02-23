@@ -52,7 +52,6 @@ function htmlpageheader()
 // 	var headers_sent        = jssp.headers_sent;
 // 	var session_start       = jssp.session_start;
 // 	var session_id          = jssp.session_id;
-//  var session_save        = jssp.session_save;
 // 	var session_destroy     = jssp.session_destroy;
 // 	var session_unset       = jssp.session_unset;
 
