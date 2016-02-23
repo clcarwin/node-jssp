@@ -12,9 +12,10 @@ function htmlpageheader()
 // {
 // 	var console   = undefined;
 
-// 	var __filename= __FILE__  = jssp.__filename;
-// 	var __dirname = __DIR__   = jssp.__dirname;
-// 	var __code    = __CODE__  = jssp.__code;
+//  var __filename,__FILE__,__dirname,__DIR__,__code,__CODE__;
+// 	__filename = __FILE__  = jssp.__filename;
+// 	__dirname  = __DIR__   = jssp.__dirname;
+// 	__code     = __CODE__  = jssp.__code;
 
 // 	var require        = jssp.require;
 // 	var Buffer         = jssp.Buffer;
@@ -28,30 +29,35 @@ function htmlpageheader()
 
 // 	var $$arraypush    = jssp.arraypush;
 // 	var $$tick         = jssp.tick;
-// 	var $$T     = $_T  = T     = jssp.T;
-// 	var $_EXT   = EXT  = jssp.EXT;
 
-// 	var $_SESSION   = SESSION   = undefined;
-// 	var $_GET       = GET       = jssp.$_GET;
-// 	var $_POST      = POST      = jssp.$_POST;
-// 	var $_FILE      = FILE      = jssp.$_FILE;
-// 	var $_SERVER    = SERVER    = jssp.$_SERVER;
-// 	var $_ENV       = ENV       = jssp.$_ENV;
-//  var $_COOKIE    = COOKIE    = jssp.$_COOKIE;
-//  var GLOBAL      = global    = jssp.GLOBAL;
-// 	var echo               = jssp.echo;
-// 	var exit               = jssp.exit;
-// 	var include            = jssp.include;
-// 	var set_time_limit     = jssp.set_time_limit;
-// 	var header             = jssp.header;
-// 	var headers_sent       = jssp.headers_sent;
-// 	var session_start      = jssp.session_start;
-// 	var session_id         = jssp.session_id;
-// 	var session_destroy    = jssp.session_destroy;
-// 	var session_unset      = jssp.session_unset;
+//  var $$T,$_T,T,$_EXT,EXT;
+// 	$$T     = $_T  = T     = jssp.T;
+// 	$_EXT   = EXT  = jssp.EXT;
+
+//  var $_SESSION,SESSION,$_GET,GET,$_POST,POST,$_FILE,FILE;
+//  var $_SERVER,SERVER,$_ENV,ENV,$_COOKIE,COOKIE,GLOBAL,global;
+// 	$_SESSION   = SESSION   = undefined;
+// 	$_GET       = GET       = jssp.$_GET;
+// 	$_POST      = POST      = jssp.$_POST;
+// 	$_FILE      = FILE      = jssp.$_FILE;
+// 	$_SERVER    = SERVER    = jssp.$_SERVER;
+// 	$_ENV       = ENV       = jssp.$_ENV;
+//  $_COOKIE    = COOKIE    = jssp.$_COOKIE;
+//  GLOBAL      = global    = jssp.GLOBAL;
+// 	var echo                = jssp.echo;
+// 	var exit                = jssp.exit;
+// 	var include             = jssp.include;
+// 	var set_time_limit      = jssp.set_time_limit;
+// 	var header              = jssp.header;
+// 	var headers_sent        = jssp.headers_sent;
+// 	var session_start       = jssp.session_start;
+// 	var session_id          = jssp.session_id;
+//  var session_save        = jssp.session_save;
+// 	var session_destroy     = jssp.session_destroy;
+// 	var session_unset       = jssp.session_unset;
 
 // 	$$domainobj = jssp.domaincreate();
-//
+//  
 //
 }
 

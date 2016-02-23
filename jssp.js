@@ -28,6 +28,7 @@ function JSSPCore()
 		options.ENV       = {};
 		options.EXT       = {};
 		options.SESSIONS  = {};
+		options.TIMER     = undefined;
 		options.CODECACHE = {};
 		options.CODEFUNC  = {};
 		options.GLOBAL    = {};

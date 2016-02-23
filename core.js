@@ -166,52 +166,62 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 		res.setHeader('Set-Cookie',[cookie]);
 	}
 
-	var ssesid;
 	jssp.internal_session_newid = function()
 	{
-		var obj = {};
-		obj.sessobj = {};
-		obj.ssesid  = process.hrtime().join('-')+'-'+Math.random()*1000000000000000000;
-		obj.time    = process.hrtime();
-		obj.id      = setInterval(function()
-		{
-			if(process.hrtime(obj.time)[0]>24*60) jssp.session_destroy();
-		},5*60*1000);
-
-		jssp.setcookie('JSSPSESSID',obj.ssesid);
-
-		jssp.SESSIONS[obj.ssesid] = obj;
-		return obj.ssesid;
+		return process.hrtime().join('-')+'-'+Math.random()*1000000000000000000;
 	}
 	jssp.session_start = function()
 	{
-		if(!ssesid) ssesid = jssp.$_COOKIE['JSSPSESSID'];
-		if(!ssesid) ssesid = jssp.internal_session_newid();
+		if(!jssp.sessid) jssp.sessid = jssp.$_COOKIE['JSSPSESSID'];
+		if(!jssp.sessid) jssp.sessid = jssp.internal_session_newid();
 
-		obj = jssp.SESSIONS[ssesid];
-		if(!obj) ssesid  = jssp.internal_session_newid();	//ssesid invalid
-		if(!obj) obj = jssp.SESSIONS[ssesid];
+		var obj = jssp.SESSIONS[jssp.sessid];
+		if(!obj) obj = jssp.tempsession;
+		if(!obj) obj = {"sessobj":{},"sessid":jssp.sessid};
 
 		obj.time = process.hrtime();
+		jssp.tempsession = obj;
+
 		return obj.sessobj;
 	}
 	jssp.session_id = function()
 	{
-		return ssesid;
+		return jssp.sessid;
+	}
+	jssp.session_save = function()	//call after login
+	{
+		if(!jssp.tempsession) return;
+		jssp.sessid = jssp.internal_session_newid();
+		jssp.SESSIONS[jssp.sessid] = jssp.tempsession;
+		jssp.setcookie('JSSPSESSID',jssp.sessid);
+
+		if(!jssp.options.TIMER)
+		jssp.options.TIMER = setInterval(function()
+		{
+			var count = 0;
+			for(var key in jssp.SESSIONS)
+			{
+				count++;
+				var obj = jssp.SESSIONS[key];
+				if(process.hrtime(obj.time)[0]>30*60) delete jssp.SESSIONS[key];
+			}
+			if(0==count) clearInterval(jssp.options.TIMER);
+			if(0==count) jssp.options.TIMER = undefined;
+		},300*1000);
 	}
 	jssp.session_destroy = function()
 	{
-		var obj = jssp.SESSIONS[ssesid];
+		var obj = jssp.SESSIONS[jssp.sessid];
 		if(!obj) return;
-		clearInterval(obj.id);
-		jssp.session_unset();
-		delete jssp.SESSIONS[ssesid];
-		ssesid = undefined;
+
+		delete jssp.SESSIONS[jssp.sessid];
+		jssp.sessid = undefined;
 	}
 	jssp.session_unset = function()
 	{
-		var obj = jssp.SESSIONS[ssesid];
+		var obj = jssp.SESSIONS[jssp.sessid];
 		if(!obj) return;
+
 		var sessobj = obj.sessobj;
 		for(var key in sessobj) delete sessobj[key];
 	}
