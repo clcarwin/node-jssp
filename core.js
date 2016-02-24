@@ -181,6 +181,7 @@ function PHPInit(jssp,req,res,postobj,fileobj,code,filename)
 		if(!obj) jssp.sessid = jssp.internal_session_newid();
 		if(!obj) jssp.SESSIONS[jssp.sessid] = {"sessobj":{},"sessid":jssp.sessid,"time":process.hrtime()};
 		if(!obj) obj = jssp.SESSIONS[jssp.sessid];
+		obj.time = process.hrtime();	//renew time
 
 		if(!jssp.options.TIMER)
 		jssp.options.TIMER = setInterval(function()
